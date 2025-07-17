@@ -1,4 +1,3 @@
-// src/users/users.controller.ts
 import {
   Body,
   Controller,
@@ -13,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { AuthenticatedRequest } from '../common/express-request.interface';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RoleType } from './users.entity';
@@ -38,13 +36,11 @@ export class UsersController {
   }
 
   @Post()
-  @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
   async createUser(
     @Body(new ZodValidationPipe(CreateUserSchema)) payload: CreateUserDto,
   ) {
-    this.usersService.createUser(payload);
-    return { msg: 'User created successfully' };
+    return this.usersService.createUser(payload);
   }
 
   @Get('me')

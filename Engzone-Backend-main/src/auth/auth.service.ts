@@ -48,17 +48,19 @@ export class AuthService {
 
     await this.tokensRepo.save(tokenEntity);
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('token', accessToken, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'strict' : 'lax',
+      secure: isProd,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'strict' : 'lax',
+      secure: isProd,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -120,17 +122,19 @@ export class AuthService {
 
     await this.tokensRepo.save(newEntity);
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('token', newAccessToken, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'strict' : 'lax',
+      secure: isProd,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'strict' : 'lax',
+      secure: isProd,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

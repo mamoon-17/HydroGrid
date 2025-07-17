@@ -1,15 +1,21 @@
-import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { toast } from "sonner";
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const { user, login, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -19,19 +25,24 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username || !password) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    if (username.length < 6 || password.length < 6) {
+      toast.error("Username and password must be at least 6 characters");
       return;
     }
 
     const success = await login(username, password);
-    
+
     if (success) {
-      toast.success('Login successful!');
-      navigate(`/${username === 'admin' ? 'admin' : 'employee'}`);
+      toast.success("Login successful!");
+      navigate(`/${username === "admin" ? "admin" : "employee"}`);
     } else {
-      toast.error('Invalid credentials');
+      toast.error("Invalid credentials");
     }
   };
 
@@ -70,15 +81,11 @@ const Login = () => {
                 disabled={isLoading}
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          
+
           <div className="mt-6 text-center">
             <div className="text-sm text-muted-foreground">
               Demo credentials:

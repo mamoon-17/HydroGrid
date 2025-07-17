@@ -26,7 +26,7 @@ export class UsersService {
     private readonly plantsService: PlantsService,
   ) {}
 
-  async createUser(payload: CreateUserDto): Promise<void> {
+  async createUser(payload: CreateUserDto): Promise<Object> {
     const { username, password, role, email, name, phone, country, plants } =
       payload;
 
@@ -70,6 +70,8 @@ export class UsersService {
     });
 
     await this.usersRepo.save(newUser);
+
+    return { msg: 'User created successfully' };
   }
 
   async getUserSelf(userId: string): Promise<Partial<Users>> {
