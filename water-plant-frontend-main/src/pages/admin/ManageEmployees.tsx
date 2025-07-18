@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -25,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { Badge } from "../../components/ui/badge";
 import { Plus, Edit, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,54 +33,23 @@ interface Employee {
   name: string;
   username: string;
   phone: string;
+  country: string;
   email?: string | null;
-  role: "admin" | "employee";
-  assignedPlants: number;
-  status: "active" | "inactive";
-  created_at: string;
-  updated_at: string;
+  role: "admin" | "user";
+  assignedPlants?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
-const ManageEmployees = () => {
-  const [employees, setEmployees] = useState<Employee[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      username: "john.doe",
-      phone: "+92-300-1234567",
-      email: "john.doe@example.com",
-      role: "employee",
-      assignedPlants: 3,
-      status: "active",
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      username: "jane.smith",
-      phone: "+92-301-2345678",
-      email: "jane.smith@example.com",
-      role: "employee",
-      assignedPlants: 2,
-      status: "active",
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "3",
-      name: "Ahmed Ali",
-      username: "ahmed.ali",
-      phone: "+92-302-3456789",
-      email: "ahmed.ali@example.com",
-      role: "employee",
-      assignedPlants: 4,
-      status: "active",
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-  ]);
+const countryOptions = [
+  { code: "PK", label: "PK (+92)", dialCode: "92" },
+  { code: "US", label: "US (+1)", dialCode: "1" },
+  { code: "IN", label: "IN (+91)", dialCode: "91" },
+];
 
+const ManageEmployees = () => {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -89,53 +57,121 @@ const ManageEmployees = () => {
     username: "",
     password: "",
     phone: "",
+    country: "PK",
     email: "",
-    role: "employee" as "admin" | "employee",
+    role: "user" as "admin" | "user",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:3000/users", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("You don't have permission to view employees");
+        }
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setEmployees(data);
+    } catch (err) {
+      console.error("Failed to load employees", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load employees"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingEmployee) {
-      // Update employee
-      setEmployees((prev) =>
-        prev.map((emp) =>
-          emp.id === editingEmployee.id
-            ? {
-                ...emp,
-                ...formData,
-                assignedPlants: emp.assignedPlants,
-                status: emp.status,
-                updated_at: new Date().toISOString(),
-              }
-            : emp
-        )
-      );
-      toast.success("Employee updated successfully");
-    } else {
-      // Add new employee
-      const newEmployee: Employee = {
-        id: Date.now().toString(),
-        ...formData,
-        assignedPlants: 0,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+    try {
+      let response;
+      const payload: any = {
+        name: formData.name,
+        role: formData.role,
       };
-      setEmployees((prev) => [...prev, newEmployee]);
-      toast.success("Employee added successfully");
-    }
 
-    setFormData({
-      name: "",
-      username: "",
-      password: "",
-      phone: "",
-      email: "",
-      role: "employee",
-    });
-    setEditingEmployee(null);
-    setIsDialogOpen(false);
+      // Only include fields that are being updated
+      if (formData.email) {
+        payload.email = formData.email;
+      }
+
+      // Handle phone and country according to schema
+      if (formData.phone) {
+        payload.phone = formData.phone;
+        payload.country = formData.country;
+      }
+
+      // Only include password if it's provided (for new users or when changing password)
+      if (formData.password) {
+        payload.password = formData.password;
+      }
+
+      if (editingEmployee) {
+        response = await fetch(
+          `http://localhost:3000/users/${editingEmployee.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          }
+        );
+      } else {
+        // For new users, phone and username are required
+        if (!formData.phone || !formData.username) {
+          toast.error("Phone number and username are required for new users");
+          return;
+        }
+        payload.username = formData.username;
+        payload.phone = formData.phone;
+        payload.country = formData.country;
+
+        response = await fetch("http://localhost:3000/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Something went wrong");
+      }
+
+      toast.success(
+        editingEmployee
+          ? "Employee updated successfully"
+          : "Employee added successfully"
+      );
+      setIsDialogOpen(false);
+      resetForm();
+      fetchEmployees();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    }
   };
 
   const handleEdit = (employee: Employee) => {
@@ -144,16 +180,34 @@ const ManageEmployees = () => {
       name: employee.name,
       username: employee.username,
       password: "",
-      phone: employee.phone,
+      phone: "", // Leave empty by default to remain unchanged
+      country: employee.country,
       email: employee.email || "",
       role: employee.role,
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
-    toast.success("Employee deleted successfully");
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3000/users/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete employee");
+      }
+
+      toast.success("Employee deleted successfully");
+      fetchEmployees();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete employee"
+      );
+    }
   };
 
   const resetForm = () => {
@@ -162,8 +216,9 @@ const ManageEmployees = () => {
       username: "",
       password: "",
       phone: "",
+      country: "PK",
       email: "",
-      role: "employee",
+      role: "user",
     });
     setEditingEmployee(null);
   };
@@ -225,7 +280,8 @@ const ManageEmployees = () => {
                     }))
                   }
                   placeholder="Enter username"
-                  required
+                  required={!editingEmployee}
+                  disabled={editingEmployee !== null}
                 />
               </div>
 
@@ -250,15 +306,44 @@ const ManageEmployees = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
-                  }
-                  placeholder="+92-300-1234567"
-                  required
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={formData.country}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        country: e.target.value,
+                      }))
+                    }
+                    className="w-[40%] border rounded px-3 py-2"
+                    required={!editingEmployee || !!formData.phone}
+                  >
+                    {countryOptions.map((opt) => (
+                      <option key={opt.code} value={opt.code}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value.replace(/^0+/, ""),
+                      }))
+                    }
+                    placeholder={
+                      editingEmployee
+                        ? "Leave empty to keep current"
+                        : "3001234567"
+                    }
+                    pattern={formData.phone ? "^[0-9]{11}$" : undefined}
+                  />
+                </div>
+                {!editingEmployee && (
+                  <p className="text-sm text-muted-foreground"></p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -271,9 +356,9 @@ const ManageEmployees = () => {
                     setFormData((prev) => ({ ...prev, email: e.target.value }))
                   }
                   placeholder="Enter email address"
-                  required={false}
                 />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
                 <select
@@ -282,13 +367,13 @@ const ManageEmployees = () => {
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      role: e.target.value as "admin" | "employee",
+                      role: e.target.value as "admin" | "user",
                     }))
                   }
                   className="w-full border rounded px-3 py-2"
                   required
                 >
-                  <option value="employee">Employee</option>
+                  <option value="user">User</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -316,7 +401,9 @@ const ManageEmployees = () => {
             <User className="h-5 w-5" />
             Employee List
           </CardTitle>
-          <CardDescription>Total: {employees.length} employees</CardDescription>
+          <CardDescription>
+            {loading ? "Loading..." : `Total: ${employees.length} employees`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -324,9 +411,9 @@ const ManageEmployees = () => {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Assigned Plants</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -335,17 +422,17 @@ const ManageEmployees = () => {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.username}</TableCell>
-                  <TableCell>{employee.phone}</TableCell>
-                  <TableCell>{employee.assignedPlants}</TableCell>
+                  <TableCell>{employee.email || "-"}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        employee.status === "active" ? "default" : "secondary"
-                      }
-                    >
-                      {employee.status}
-                    </Badge>
+                    {employee.country
+                      ? `+${
+                          countryOptions.find(
+                            (c) => c.code === employee.country
+                          )?.dialCode || ""
+                        }${employee.phone}`
+                      : employee.phone}
                   </TableCell>
+                  <TableCell>{employee.role}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button

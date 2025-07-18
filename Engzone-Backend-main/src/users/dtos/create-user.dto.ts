@@ -6,7 +6,7 @@ export const CreateUserSchema = z.object({
   role: z.enum(['admin', 'user']),
   email: z.email().optional(),
   name: z.string(),
-  phone: z.string().min(5).length(11),
+  phone: z.string(),
   country: z.string().length(2).toUpperCase(),
   plants: z
     .union([z.uuid(), z.array(z.uuid())])
