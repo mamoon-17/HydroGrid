@@ -1,81 +1,214 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { StatusBadge } from '../../components/StatusBadge';
-import { 
-  Database, 
-  ClipboardList, 
-  History, 
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { StatusBadge } from "../../components/StatusBadge";
+import {
+  Database,
+  ClipboardList,
+  History,
   Calendar,
   MapPin,
-  AlertTriangle
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { toast } from "sonner";
+
+interface Plant {
+  id: string;
+  address: string;
+  type: "uf" | "ro";
+  tehsil: string;
+  capacity: number;
+  lat?: number;
+  lng?: number;
+  users?: Array<{
+    id: string;
+    name: string;
+    username: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Report {
+  id: string;
+  plant: {
+    id: string;
+    address: string;
+    tehsil: string;
+    type: "uf" | "ro";
+  };
+  submitted_by: {
+    id: string;
+    name: string;
+    username: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
+  const [assignedPlants, setAssignedPlants] = useState<Plant[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for assigned plants
-  const assignedPlants = [
-    {
-      id: '1',
-      location: 'Sector 15, Karachi',
-      type: 'RO',
-      capacity: 1000,
-      lastReport: '2024-01-15',
-      status: 'maintained' as const,
-      daysAgo: 2
-    },
-    {
-      id: '2',
-      location: 'Phase 2, Lahore',
-      type: 'UF',
-      capacity: 2000,
-      lastReport: '2024-01-10',
-      status: 'pending' as const,
-      daysAgo: 7
-    },
-    {
-      id: '3',
-      location: 'Block A, Islamabad',
-      type: 'RO',
-      capacity: 500,
-      lastReport: '2023-12-28',
-      status: 'warning' as const,
-      daysAgo: 20
+  useEffect(() => {
+    if (user) {
+      fetchEmployeeData();
     }
-  ];
+  }, [user]);
 
-  const stats = {
-    totalAssigned: assignedPlants.length,
-    reportsThisMonth: 8,
-    overdueReports: assignedPlants.filter(p => p.daysAgo > 15).length,
-    averageReportTime: 3.2
+  const fetchEmployeeData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch assigned plants for the current user
+      const plantsResponse = await fetch(
+        "http://localhost:3000/plants/assigned",
+        {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!plantsResponse.ok) {
+        throw new Error(
+          `Failed to fetch assigned plants: ${plantsResponse.status}`
+        );
+      }
+
+      const assignedPlants = await plantsResponse.json();
+
+      // Debug logging
+      console.log("Assigned plants:", assignedPlants);
+      console.log("Current user ID:", user?.id);
+
+      setAssignedPlants(assignedPlants);
+
+      // Fetch reports submitted by current user
+      const reportsResponse = await fetch(
+        `http://localhost:3000/reports/user/${user?.id}`,
+        {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (reportsResponse.ok) {
+        const userReports = await reportsResponse.json();
+        setReports(userReports);
+      } else {
+        console.warn("Could not fetch user reports:", reportsResponse.status);
+        setReports([]);
+      }
+    } catch (err) {
+      console.error("Failed to load employee data", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load employee data"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const recentActivity = [
-    {
-      id: '1',
-      action: 'Submitted quality report',
-      plant: 'Sector 15, Karachi',
-      timestamp: '2 hours ago',
-      type: 'report'
-    },
-    {
-      id: '2',
-      action: 'Updated maintenance log',
-      plant: 'Phase 2, Lahore',
-      timestamp: '1 day ago',
-      type: 'maintenance'
-    },
-    {
-      id: '3',
-      action: 'Completed inspection',
-      plant: 'Block A, Islamabad',
-      timestamp: '3 days ago',
-      type: 'inspection'
-    }
-  ];
+  // Helper function to get last report time for a plant
+  const getLastReport = (plant: Plant) => {
+    if (!plant.updated_at) return "Never";
+
+    const lastUpdate = new Date(plant.updated_at);
+    const now = new Date();
+    const daysDiff = Math.floor(
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+    );
+
+    if (daysDiff === 0) return "Today";
+    if (daysDiff === 1) return "1 day ago";
+    return `${daysDiff} days ago`;
+  };
+
+  // Helper function to get days since last report
+  const getDaysAgo = (plant: Plant) => {
+    if (!plant.updated_at) return 999; // High number for never reported
+
+    const lastUpdate = new Date(plant.updated_at);
+    const now = new Date();
+    return Math.floor(
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+    );
+  };
+
+  // Helper function to determine plant status
+  const getPlantStatus = (plant: Plant) => {
+    const daysAgo = getDaysAgo(plant);
+
+    if (daysAgo <= 7) return "maintained";
+    if (daysAgo <= 15) return "pending";
+    return "warning";
+  };
+
+  // Calculate statistics
+  const stats = {
+    totalAssigned: assignedPlants.length,
+    reportsThisMonth: reports.filter((r) => {
+      const reportDate = new Date(r.created_at);
+      const now = new Date();
+      return (
+        reportDate.getMonth() === now.getMonth() &&
+        reportDate.getFullYear() === now.getFullYear()
+      );
+    }).length,
+    overdueReports: assignedPlants.filter((p) => getDaysAgo(p) > 15).length,
+    averageReportTime:
+      assignedPlants.length > 0
+        ? Math.round((reports.length / assignedPlants.length) * 7)
+        : 0,
+  };
+
+  // Get recent activity from reports
+  const recentActivity = reports.slice(0, 3).map((report, index) => ({
+    id: report.id,
+    action: "Submitted quality report",
+    plant: report.plant.address,
+    timestamp: formatReportDate(report.created_at),
+    type: "report" as const,
+  }));
+
+  // Helper function to format report date
+  const formatReportDate = (dateString: string) => {
+    const reportDate = new Date(dateString);
+    const now = new Date();
+    const daysDiff = Math.floor(
+      (now.getTime() - reportDate.getTime()) / (1000 * 3600 * 24)
+    );
+
+    if (daysDiff === 0) return "Today";
+    if (daysDiff === 1) return "1 day ago";
+    return `${daysDiff} days ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-lg">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -94,44 +227,64 @@ const EmployeeDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assigned Plants</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Assigned Plants
+            </CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{stats.totalAssigned}</div>
-            <p className="text-xs text-muted-foreground">Under your maintenance</p>
+            <div className="text-2xl font-bold text-primary">
+              {stats.totalAssigned}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Under your maintenance
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reports This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Reports This Month
+            </CardTitle>
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{stats.reportsThisMonth}</div>
+            <div className="text-2xl font-bold text-success">
+              {stats.reportsThisMonth}
+            </div>
             <p className="text-xs text-muted-foreground">Submitted reports</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue Reports</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Overdue Reports
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-danger" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-danger">{stats.overdueReports}</div>
-            <p className="text-xs text-muted-foreground">Need immediate attention</p>
+            <div className="text-2xl font-bold text-danger">
+              {stats.overdueReports}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Need immediate attention
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Report Time</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Avg Report Time
+            </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">{stats.averageReportTime}d</div>
+            <div className="text-2xl font-bold text-accent">
+              {stats.averageReportTime}d
+            </div>
             <p className="text-xs text-muted-foreground">Between reports</p>
           </CardContent>
         </Card>
@@ -145,19 +298,21 @@ const EmployeeDashboard = () => {
               <ClipboardList className="h-5 w-5" />
               Quick Actions
             </CardTitle>
-            <CardDescription>
-              Common tasks and shortcuts
-            </CardDescription>
+            <CardDescription>Common tasks and shortcuts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Link to="/employee/fill-report">
+            <Link to="/user/fill-report">
               <Button className="w-full justify-start" size="lg">
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Fill Out New Report
               </Button>
             </Link>
-            <Link to="/employee/work-history">
-              <Button variant="outline" className="w-full justify-start" size="lg">
+            <Link to="/user/work-history">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                size="lg"
+              >
                 <History className="h-4 w-4 mr-2" />
                 View Work History
               </Button>
@@ -171,23 +326,35 @@ const EmployeeDashboard = () => {
               <History className="h-5 w-5" />
               Recent Activity
             </CardTitle>
-            <CardDescription>
-              Your latest actions and updates
-            </CardDescription>
+            <CardDescription>Your latest actions and updates</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg border">
-                  <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{activity.action}</p>
-                    <p className="text-xs text-muted-foreground">{activity.plant}</p>
-                    <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+            {recentActivity.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                <p>No recent activity</p>
+                <p className="text-sm">Start by submitting your first report</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start gap-3 p-2 rounded-lg border"
+                  >
+                    <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{activity.action}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.plant}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.timestamp}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -204,56 +371,92 @@ const EmployeeDashboard = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {assignedPlants.map((plant) => (
-              <Card key={plant.id} className={`${plant.status === 'warning' ? 'border-danger' : ''}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="text-sm">{plant.location}</CardTitle>
-                    </div>
-                    <StatusBadge status={plant.status} />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Type:</span>
-                      <span className="font-medium">{plant.type}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Capacity:</span>
-                      <span className="font-medium">{plant.capacity} LPH</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last Report:</span>
-                      <span className={`font-medium ${plant.daysAgo > 15 ? 'text-danger' : plant.daysAgo > 7 ? 'text-warning' : 'text-success'}`}>
-                        {plant.daysAgo} days ago
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {plant.status === 'warning' && (
-                    <div className="mt-3 p-2 bg-danger/10 border border-danger/20 rounded">
-                      <p className="text-xs text-danger">
-                        <AlertTriangle className="h-3 w-3 inline mr-1" />
-                        Report overdue - immediate attention required
-                      </p>
-                    </div>
-                  )}
-                  
-                  <div className="mt-3">
-                    <Link to="/employee/fill-report">
-                      <Button size="sm" className="w-full">
-                        Submit Report
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {assignedPlants.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p>No plants assigned to you yet.</p>
+              <p className="text-sm">
+                Contact your administrator to get assigned to plants.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assignedPlants.map((plant) => {
+                const daysAgo = getDaysAgo(plant);
+                const status = getPlantStatus(plant);
+
+                return (
+                  <Card
+                    key={plant.id}
+                    className={`${status === "warning" ? "border-danger" : ""}`}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <CardTitle className="text-sm">
+                            {plant.address}
+                          </CardTitle>
+                        </div>
+                        <StatusBadge status={status} />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Type:</span>
+                          <span className="font-medium">
+                            {plant.type.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Capacity:
+                          </span>
+                          <span className="font-medium">
+                            {plant.capacity.toLocaleString()} LPH
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">
+                            Last Report:
+                          </span>
+                          <span
+                            className={`font-medium ${
+                              daysAgo > 15
+                                ? "text-danger"
+                                : daysAgo > 7
+                                ? "text-warning"
+                                : "text-success"
+                            }`}
+                          >
+                            {daysAgo === 999 ? "Never" : `${daysAgo} days ago`}
+                          </span>
+                        </div>
+                      </div>
+
+                      {status === "warning" && (
+                        <div className="mt-3 p-2 bg-danger/10 border border-danger/20 rounded">
+                          <p className="text-xs text-danger">
+                            <AlertTriangle className="h-3 w-3 inline mr-1" />
+                            Report overdue - immediate attention required
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-3">
+                        <Link to="/user/fill-report">
+                          <Button size="sm" className="w-full">
+                            Submit Report
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

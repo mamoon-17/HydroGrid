@@ -6,7 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, DataSource } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Plants } from './plants.entity';
 import { Users } from '../users/users.entity';
 import { UsersService } from 'src/users/users.service';
@@ -21,7 +21,20 @@ export class PlantsService {
   ) {}
 
   async getAllPlants(): Promise<Plants[]> {
-    return this.plantsRepo.find();
+    return this.plantsRepo.find({
+      relations: ['users'],
+    });
+  }
+
+  async getAssignedPlants(userId: string): Promise<Plants[]> {
+    return this.plantsRepo.find({
+      relations: ['users'],
+      where: {
+        users: {
+          id: userId,
+        },
+      },
+    });
   }
 
   async createPlant(payload: CreatePlantDto): Promise<Plants> {
@@ -46,7 +59,10 @@ export class PlantsService {
 
   async getPlantsByIds(ids: string[]): Promise<Plants[]> {
     if (!ids.length) return [];
-    return this.plantsRepo.findBy({ id: In(ids) });
+    return this.plantsRepo.find({
+      where: { id: In(ids) },
+      relations: ['users'],
+    });
   }
 
   async getPlantEmployees(id: string): Promise<Users[]> {

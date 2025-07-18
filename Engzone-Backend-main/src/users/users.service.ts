@@ -80,8 +80,8 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const { username, role, email, name, phone } = user;
-    return { username, role, email, name, phone };
+    const { id, username, role, email, name, phone } = user;
+    return { id, username, role, email, name, phone };
   }
 
   async getUsersOrThrow(ids: string[]): Promise<Users[]> {

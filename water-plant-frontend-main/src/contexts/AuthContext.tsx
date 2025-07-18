@@ -7,7 +7,7 @@ interface User {
   name: string;
   phone: string;
   email?: string | null;
-  role: "admin" | "employee";
+  role: "admin" | "user";
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsLoading(true);
         await apiFetch("/auth/refresh", { method: "POST" });
         const userData = await apiFetch("/users/me");
+        console.log("Initial user data from refresh:", userData);
         setUser(userData);
       } catch {
         setUser(null);
@@ -59,16 +60,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
+      console.log("Logging in with username:", username);
       await apiFetch("/auth/login", {
         method: "POST",
         body: JSON.stringify({ username, password }),
       });
       // Fetch user info after successful login
       const userData = await apiFetch("/users/me");
+      console.log("User data from login:", userData);
+      console.log("User role from backend:", userData.role);
       setUser(userData);
       setIsLoading(false);
       return true;
-    } catch {
+    } catch (error) {
+      console.error("Login error:", error);
       setUser(null);
       setIsLoading(false);
       return false;

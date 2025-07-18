@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -34,6 +34,14 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+
+            {/* Redirect old /employee paths to new /user paths */}
+            <Route path="/employee" element={<Navigate to="/user" replace />} />
+            <Route
+              path="/employee/*"
+              element={<Navigate to="/user" replace />}
+            />
+
             <Route path="/" element={<Layout />}>
               {/* Admin Routes */}
               <Route path="admin" element={<ProtectedRoute role="admin" />}>
@@ -44,9 +52,9 @@ const App = () => (
                 <Route path="reports" element={<QualityReports />} />
                 <Route path="analytics" element={<Analytics />} />
               </Route>
-              
-              {/* Employee Routes */}
-              <Route path="employee" element={<ProtectedRoute role="employee" />}>
+
+              {/* User Routes (Employee Dashboard) */}
+              <Route path="user" element={<ProtectedRoute role="user" />}>
                 <Route index element={<EmployeeDashboard />} />
                 <Route path="fill-report" element={<FillReport />} />
                 <Route path="work-history" element={<WorkHistory />} />

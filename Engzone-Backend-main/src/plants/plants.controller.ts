@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -30,6 +31,12 @@ export class PlantsController {
   @Roles(RoleType.ADMIN)
   getAllPlants() {
     return this.plantsService.getAllPlants();
+  }
+
+  @Get('assigned')
+  @UseGuards(AuthGuard)
+  getAssignedPlants(@Request() req: any) {
+    return this.plantsService.getAssignedPlants(req.user.id);
   }
 
   @Post()

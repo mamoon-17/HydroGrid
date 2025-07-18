@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
-import { Plus, Edit, Trash2, Database, MapPin } from "lucide-react";
+import { Plus, Edit, Trash2, Database, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 
 interface Plant {
@@ -45,116 +45,169 @@ interface Plant {
   tehsil: string;
   type: "uf" | "ro";
   capacity: number;
+  users?: Array<{
+    id: string;
+    name: string;
+    username: string;
+  }>;
   created_at: string;
   updated_at: string;
 }
 
+interface CreatePlantData {
+  address: string;
+  lat?: number;
+  lng?: number;
+  tehsil: string;
+  type: "uf" | "ro";
+  capacity: number;
+  userIds?: string[];
+}
+
 const ManagePlants = () => {
-  const [plants, setPlants] = useState<Plant[]>([
-    {
-      id: "1",
-      address: "Sector 15, Karachi",
-      lat: 24.8607,
-      lng: 67.0011,
-      point: null,
-      tehsil: "Karachi South",
-      type: "ro",
-      capacity: 1000,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "2",
-      address: "Phase 2, Lahore",
-      lat: 31.5204,
-      lng: 74.3587,
-      point: null,
-      tehsil: "Lahore Cantt",
-      type: "uf",
-      capacity: 2000,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "3",
-      address: "Block A, Islamabad",
-      lat: 33.6844,
-      lng: 73.0479,
-      point: null,
-      tehsil: "Islamabad",
-      type: "ro",
-      capacity: 500,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-  ]);
-
-  const [employees] = useState([
-    "John Doe",
-    "Jane Smith",
-    "Ahmed Ali",
-    "Sarah Khan",
-    "Ali Hassan",
-  ]);
-
+  const [plants, setPlants] = useState<Plant[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreatePlantData>({
     address: "",
-    lat: undefined as number | undefined,
-    lng: undefined as number | undefined,
-    point: "",
+    lat: undefined,
+    lng: undefined,
     tehsil: "",
-    type: "ro" as "uf" | "ro",
-    capacity: 1000 as number,
+    type: "ro",
+    capacity: 1000,
+    userIds: [],
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchPlants();
+  }, []);
+
+  const fetchPlants = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:3000/plants", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("You don't have permission to view plants");
+        }
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setPlants(data);
+    } catch (err) {
+      console.error("Failed to load plants", err);
+      toast.error(err instanceof Error ? err.message : "Failed to load plants");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingPlant) {
-      // Update plant
-      setPlants((prev) =>
-        prev.map((plant) =>
-          plant.id === editingPlant.id
-            ? { ...plant, ...formData, updated_at: new Date().toISOString() }
-            : plant
-        )
-      );
-      toast.success("Plant updated successfully");
-    } else {
-      // Add new plant
-      const newPlant: Plant = {
-        id: Date.now().toString(),
-        ...formData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+    try {
+      let response;
+      const payload: Partial<CreatePlantData> = {
+        address: formData.address,
+        tehsil: formData.tehsil,
+        type: formData.type,
+        capacity: formData.capacity,
       };
-      setPlants((prev) => [...prev, newPlant]);
-      toast.success("Plant added successfully");
-    }
 
-    resetForm();
-    setIsDialogOpen(false);
+      if (formData.lat !== undefined) {
+        payload.lat = formData.lat;
+      }
+      if (formData.lng !== undefined) {
+        payload.lng = formData.lng;
+      }
+      if (formData.userIds && formData.userIds.length > 0) {
+        payload.userIds = formData.userIds;
+      }
+
+      if (editingPlant) {
+        response = await fetch(
+          `http://localhost:3000/plants/${editingPlant.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          }
+        );
+      } else {
+        response = await fetch("http://localhost:3000/plants", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Something went wrong");
+      }
+
+      toast.success(
+        editingPlant ? "Plant updated successfully" : "Plant added successfully"
+      );
+      setIsDialogOpen(false);
+      resetForm();
+      fetchPlants();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    }
   };
 
   const handleEdit = (plant: Plant) => {
     setEditingPlant(plant);
     setFormData({
       address: plant.address,
-      lat: plant.lat,
-      lng: plant.lng,
-      point: plant.point || "",
+      lat: plant.lat || undefined,
+      lng: plant.lng || undefined,
       tehsil: plant.tehsil,
       type: plant.type,
       capacity: plant.capacity,
+      userIds: plant.users?.map((user) => user.id) || [],
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setPlants((prev) => prev.filter((plant) => plant.id !== id));
-    toast.success("Plant deleted successfully");
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3000/plants/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete plant");
+      }
+
+      toast.success("Plant deleted successfully");
+      fetchPlants();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete plant"
+      );
+    }
   };
 
   const resetForm = () => {
@@ -162,13 +215,29 @@ const ManagePlants = () => {
       address: "",
       lat: undefined,
       lng: undefined,
-      point: "",
       tehsil: "",
       type: "ro",
       capacity: 1000,
+      userIds: [],
     });
     setEditingPlant(null);
   };
+
+  // Helper function to get assigned employees as string
+  const getAssignedEmployees = (plant: Plant) => {
+    if (!plant.users || plant.users.length === 0) {
+      return "No employees assigned";
+    }
+    return plant.users.map((user) => user.name).join(", ");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading plants...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -220,6 +289,7 @@ const ManagePlants = () => {
                 <Input
                   id="lat"
                   type="number"
+                  step="any"
                   value={formData.lat ?? ""}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -237,6 +307,7 @@ const ManagePlants = () => {
                 <Input
                   id="lng"
                   type="number"
+                  step="any"
                   value={formData.lng ?? ""}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -247,17 +318,6 @@ const ManagePlants = () => {
                     }))
                   }
                   placeholder="Enter longitude (optional)"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="point">Point</Label>
-                <Input
-                  id="point"
-                  value={formData.point}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, point: e.target.value }))
-                  }
-                  placeholder="Enter point (optional)"
                 />
               </div>
               <div className="space-y-2">
@@ -274,21 +334,20 @@ const ManagePlants = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Type</Label>
-                <select
-                  id="type"
+                <Select
                   value={formData.type}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      type: e.target.value as "uf" | "ro",
-                    }))
+                  onValueChange={(value: "uf" | "ro") =>
+                    setFormData((prev) => ({ ...prev, type: value }))
                   }
-                  className="w-full border rounded px-3 py-2"
-                  required
                 >
-                  <option value="ro">RO</option>
-                  <option value="uf">UF</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ro">RO</SelectItem>
+                    <SelectItem value="uf">UF</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="capacity">Capacity (LPH)</Label>
@@ -340,7 +399,7 @@ const ManagePlants = () => {
               <TableRow>
                 <TableHead>Location</TableHead>
                 <TableHead>GPS Coordinates</TableHead>
-                <TableHead>Assigned Employee</TableHead>
+                <TableHead>Assigned Employees</TableHead>
                 <TableHead>Tehsil</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Capacity</TableHead>
@@ -358,17 +417,25 @@ const ManagePlants = () => {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-sm">
-                    {plant.lat}, {plant.lng}
+                    {plant.lat && plant.lng
+                      ? `${plant.lat}, ${plant.lng}`
+                      : "Not set"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      {getAssignedEmployees(plant)}
+                    </div>
                   </TableCell>
                   <TableCell>{plant.tehsil}</TableCell>
                   <TableCell>
                     <Badge
                       variant={plant.type === "ro" ? "default" : "secondary"}
                     >
-                      {plant.type}
+                      {plant.type.toUpperCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell>{plant.capacity} LPH</TableCell>
+                  <TableCell>{plant.capacity.toLocaleString()} LPH</TableCell>
                   <TableCell>
                     <Badge variant="default">Active</Badge>
                   </TableCell>

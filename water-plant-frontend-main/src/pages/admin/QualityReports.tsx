@@ -1,109 +1,250 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { FileText, Search, Eye, Trash2, Calendar, User, MapPin } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import {
+  FileText,
+  Search,
+  Eye,
+  Trash2,
+  Calendar,
+  User,
+  MapPin,
+  Loader2,
+} from "lucide-react";
+import { toast } from "sonner";
 
-interface QualityReport {
+interface Report {
   id: string;
-  plantLocation: string;
-  employeeName: string;
-  tehsil: string;
-  submittedDate: string;
-  rawTds: number;
-  permateTds: number;
-  productTds: number;
-  ph: number;
-  flowRate: number;
-  status: 'complete' | 'pending' | 'issues';
+  plant: {
+    id: string;
+    address: string;
+    tehsil: string;
+    type: "uf" | "ro";
+  };
+  submitted_by: {
+    id: string;
+    name: string;
+    username: string;
+  };
+  raw_water_tds: number;
+  permeate_water_tds: number;
+  raw_water_ph: number;
+  permeate_water_ph: number;
+  product_water_tds: number;
+  product_water_flow: number;
+  product_water_ph: number;
+  reject_water_flow: number;
+  membrane_inlet_pressure: number;
+  membrane_outlet_pressure: number;
+  raw_water_inlet_pressure: number;
+  volts_amperes: number;
+  multimedia_backwash: "done" | "not_done" | "not_required";
+  carbon_backwash: "done" | "not_done" | "not_required";
+  membrane_cleaning: "done" | "not_done" | "not_required";
+  arsenic_media_backwash: "done" | "not_done" | "not_required";
+  cip: boolean;
+  chemical_refill_litres: number;
+  cartridge_filter_replacement: number;
+  membrane_replacement: number;
+  created_at: string;
+  updated_at: string;
 }
 
 const QualityReports = () => {
-  const [reports, setReports] = useState<QualityReport[]>([
-    {
-      id: '1',
-      plantLocation: 'Sector 15, Karachi',
-      employeeName: 'John Doe',
-      tehsil: 'Karachi South',
-      submittedDate: '2024-01-15',
-      rawTds: 850,
-      permateTds: 45,
-      productTds: 35,
-      ph: 7.2,
-      flowRate: 950,
-      status: 'complete'
-    },
-    {
-      id: '2',
-      plantLocation: 'Phase 2, Lahore',
-      employeeName: 'Jane Smith',
-      tehsil: 'Lahore Cantt',
-      submittedDate: '2024-01-14',
-      rawTds: 920,
-      permateTds: 52,
-      productTds: 42,
-      ph: 6.8,
-      flowRate: 1850,
-      status: 'issues'
-    },
-    {
-      id: '3',
-      plantLocation: 'Block A, Islamabad',
-      employeeName: 'Ahmed Ali',
-      tehsil: 'Islamabad',
-      submittedDate: '2024-01-12',
-      rawTds: 780,
-      permateTds: 38,
-      productTds: 28,
-      ph: 7.5,
-      flowRate: 480,
-      status: 'complete'
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [tehsilFilter, setTehsilFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:3000/reports", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("You don't have permission to view reports");
+        }
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setReports(data);
+    } catch (err) {
+      console.error("Failed to load reports", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load reports"
+      );
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
-  const [tehsilFilter, setTehsilFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedReport, setSelectedReport] = useState<QualityReport | null>(null);
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3000/reports/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
-  const uniqueEmployees = [...new Set(reports.map(report => report.employeeName))];
-  const uniqueTehsils = [...new Set(reports.map(report => report.tehsil))];
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete report");
+      }
 
-  const filteredReports = reports.filter(report => {
-    const matchesSearch = report.plantLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.employeeName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEmployee = employeeFilter === 'all' || report.employeeName === employeeFilter;
-    const matchesTehsil = tehsilFilter === 'all' || report.tehsil === tehsilFilter;
-    const matchesStatus = statusFilter === 'all' || report.status === statusFilter;
-    
+      toast.success("Report deleted successfully");
+      fetchReports();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete report"
+      );
+    }
+  };
+
+  // Helper function to determine report status
+  const getReportStatus = (report: Report) => {
+    // Check if all required maintenance tasks are done
+    const maintenanceTasks = [
+      report.multimedia_backwash,
+      report.carbon_backwash,
+      report.membrane_cleaning,
+      report.arsenic_media_backwash,
+    ];
+
+    const allDone = maintenanceTasks.every(
+      (task) => task === "done" || task === "not_required"
+    );
+
+    if (allDone) {
+      return "complete";
+    } else if (maintenanceTasks.some((task) => task === "not_done")) {
+      return "issues";
+    } else {
+      return "pending";
+    }
+  };
+
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "complete":
+        return "default";
+      case "pending":
+        return "secondary";
+      case "issues":
+        return "destructive";
+      default:
+        return "secondary";
+    }
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Get unique employees and tehsils for filters
+  const uniqueEmployees = [
+    ...new Set(reports.map((report) => report.submitted_by.name)),
+  ];
+  const uniqueTehsils = [
+    ...new Set(reports.map((report) => report.plant.tehsil)),
+  ];
+
+  // Filter reports
+  const filteredReports = reports.filter((report) => {
+    const matchesSearch =
+      report.plant.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.submitted_by.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesEmployee =
+      employeeFilter === "all" || report.submitted_by.name === employeeFilter;
+    const matchesTehsil =
+      tehsilFilter === "all" || report.plant.tehsil === tehsilFilter;
+    const matchesStatus =
+      statusFilter === "all" || getReportStatus(report) === statusFilter;
+
     return matchesSearch && matchesEmployee && matchesTehsil && matchesStatus;
   });
 
-  const handleDelete = (id: string) => {
-    setReports(prev => prev.filter(report => report.id !== id));
-    toast.success('Report deleted successfully');
+  // Calculate statistics
+  const stats = {
+    totalReports: reports.length,
+    completeReports: reports.filter((r) => getReportStatus(r) === "complete")
+      .length,
+    issuesReports: reports.filter((r) => getReportStatus(r) === "issues")
+      .length,
+    thisMonthReports: reports.filter((r) => {
+      const reportDate = new Date(r.created_at);
+      const now = new Date();
+      return (
+        reportDate.getMonth() === now.getMonth() &&
+        reportDate.getFullYear() === now.getFullYear()
+      );
+    }).length,
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'complete': return 'default';
-      case 'pending': return 'secondary';
-      case 'issues': return 'destructive';
-      default: return 'secondary';
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-lg">Loading reports...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Quality Reports</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Quality Reports
+          </h1>
           <p className="text-muted-foreground mt-1">
             Browse and analyze quality reports from all plants
           </p>
@@ -118,7 +259,7 @@ const QualityReports = () => {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reports.length}</div>
+            <div className="text-2xl font-bold">{stats.totalReports}</div>
           </CardContent>
         </Card>
 
@@ -129,7 +270,7 @@ const QualityReports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {reports.filter(r => r.status === 'complete').length}
+              {stats.completeReports}
             </div>
           </CardContent>
         </Card>
@@ -141,7 +282,7 @@ const QualityReports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-danger">
-              {reports.filter(r => r.status === 'issues').length}
+              {stats.issuesReports}
             </div>
           </CardContent>
         </Card>
@@ -153,7 +294,7 @@ const QualityReports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {reports.filter(r => new Date(r.submittedDate).getMonth() === new Date().getMonth()).length}
+              {stats.thisMonthReports}
             </div>
           </CardContent>
         </Card>
@@ -186,8 +327,10 @@ const QualityReports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {uniqueEmployees.map(employee => (
-                    <SelectItem key={employee} value={employee}>{employee}</SelectItem>
+                  {uniqueEmployees.map((employee) => (
+                    <SelectItem key={employee} value={employee}>
+                      {employee}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -201,8 +344,10 @@ const QualityReports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tehsils</SelectItem>
-                  {uniqueTehsils.map(tehsil => (
-                    <SelectItem key={tehsil} value={tehsil}>{tehsil}</SelectItem>
+                  {uniqueTehsils.map((tehsil) => (
+                    <SelectItem key={tehsil} value={tehsil}>
+                      {tehsil}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -235,113 +380,189 @@ const QualityReports = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Plant Location</TableHead>
-                <TableHead>Employee</TableHead>
-                <TableHead>Tehsil</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>TDS Values</TableHead>
-                <TableHead>pH</TableHead>
-                <TableHead>Flow Rate</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {report.plantLocation}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      {report.employeeName}
-                    </div>
-                  </TableCell>
-                  <TableCell>{report.tehsil}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {new Date(report.submittedDate).toLocaleDateString()}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-xs space-y-1">
-                      <div>Raw: {report.rawTds}</div>
-                      <div>Product: {report.productTds}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{report.ph}</TableCell>
-                  <TableCell>{report.flowRate} LPH</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(report.status)}>
-                      {report.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedReport(report)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Quality Report Details</DialogTitle>
-                            <DialogDescription>
-                              Detailed view of quality report for {report.plantLocation}
-                            </DialogDescription>
-                          </DialogHeader>
-                          {selectedReport && (
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <strong>Plant Information</strong>
-                                <div className="text-sm space-y-1">
-                                  <div>Location: {selectedReport.plantLocation}</div>
-                                  <div>Employee: {selectedReport.employeeName}</div>
-                                  <div>Tehsil: {selectedReport.tehsil}</div>
-                                  <div>Date: {new Date(selectedReport.submittedDate).toLocaleDateString()}</div>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <strong>Quality Measurements</strong>
-                                <div className="text-sm space-y-1">
-                                  <div>Raw TDS: {selectedReport.rawTds} ppm</div>
-                                  <div>Permeate TDS: {selectedReport.permateTds} ppm</div>
-                                  <div>Product TDS: {selectedReport.productTds} ppm</div>
-                                  <div>pH Level: {selectedReport.ph}</div>
-                                  <div>Flow Rate: {selectedReport.flowRate} LPH</div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(report.id)}
-                        className="text-danger hover:text-danger"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {filteredReports.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p>No reports found matching your criteria.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Plant Location</TableHead>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Tehsil</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>TDS Values</TableHead>
+                  <TableHead>pH</TableHead>
+                  <TableHead>Flow Rate</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredReports.map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        {report.plant.address}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        {report.submitted_by.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>{report.plant.tehsil}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        {formatDate(report.created_at)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs space-y-1">
+                        <div>Raw: {report.raw_water_tds}</div>
+                        <div>Product: {report.product_water_tds}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{report.product_water_ph}</TableCell>
+                    <TableCell>{report.product_water_flow} LPH</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(getReportStatus(report))}>
+                        {getReportStatus(report)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedReport(report)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Quality Report Details</DialogTitle>
+                              <DialogDescription>
+                                Detailed view of quality report for{" "}
+                                {report.plant.address}
+                              </DialogDescription>
+                            </DialogHeader>
+                            {selectedReport && (
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <strong>Plant Information</strong>
+                                  <div className="text-sm space-y-1">
+                                    <div>
+                                      Location: {selectedReport.plant.address}
+                                    </div>
+                                    <div>
+                                      Employee:{" "}
+                                      {selectedReport.submitted_by.name}
+                                    </div>
+                                    <div>
+                                      Tehsil: {selectedReport.plant.tehsil}
+                                    </div>
+                                    <div>
+                                      Date:{" "}
+                                      {formatDate(selectedReport.created_at)}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <strong>Quality Measurements</strong>
+                                  <div className="text-sm space-y-1">
+                                    <div>
+                                      Raw TDS: {selectedReport.raw_water_tds}{" "}
+                                      ppm
+                                    </div>
+                                    <div>
+                                      Permeate TDS:{" "}
+                                      {selectedReport.permeate_water_tds} ppm
+                                    </div>
+                                    <div>
+                                      Product TDS:{" "}
+                                      {selectedReport.product_water_tds} ppm
+                                    </div>
+                                    <div>
+                                      Product pH:{" "}
+                                      {selectedReport.product_water_ph}
+                                    </div>
+                                    <div>
+                                      Flow Rate:{" "}
+                                      {selectedReport.product_water_flow} LPH
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <strong>Maintenance Status</strong>
+                                  <div className="text-sm space-y-1">
+                                    <div>
+                                      Multimedia Backwash:{" "}
+                                      {selectedReport.multimedia_backwash}
+                                    </div>
+                                    <div>
+                                      Carbon Backwash:{" "}
+                                      {selectedReport.carbon_backwash}
+                                    </div>
+                                    <div>
+                                      Membrane Cleaning:{" "}
+                                      {selectedReport.membrane_cleaning}
+                                    </div>
+                                    <div>
+                                      Arsenic Media Backwash:{" "}
+                                      {selectedReport.arsenic_media_backwash}
+                                    </div>
+                                    <div>
+                                      CIP: {selectedReport.cip ? "Yes" : "No"}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <strong>Replacements</strong>
+                                  <div className="text-sm space-y-1">
+                                    <div>
+                                      Cartridge Filters:{" "}
+                                      {
+                                        selectedReport.cartridge_filter_replacement
+                                      }
+                                    </div>
+                                    <div>
+                                      Membranes:{" "}
+                                      {selectedReport.membrane_replacement}
+                                    </div>
+                                    <div>
+                                      Chemical Refill:{" "}
+                                      {selectedReport.chemical_refill_litres}L
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(report.id)}
+                          className="text-danger hover:text-danger"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

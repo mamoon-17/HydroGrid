@@ -1,5 +1,5 @@
 //check for
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -18,9 +18,26 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
-import { ClipboardList, Save, Send } from "lucide-react";
+import { ClipboardList, Save, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
+
+interface Plant {
+  id: string;
+  address: string;
+  type: "uf" | "ro";
+  tehsil: string;
+  capacity: number;
+  lat?: number;
+  lng?: number;
+  users?: Array<{
+    id: string;
+    name: string;
+    username: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
 
 interface ReportMediaItem {
   id: string;
@@ -50,18 +67,16 @@ interface ReportFormData {
   chemical_refill_litres: string;
   cartridge_filter_replacement: string;
   membrane_replacement: string;
+  notes?: string;
   media: ReportMediaItem[];
 }
 
 const FillReport = () => {
   const { user } = useAuth();
-
-  // Mock assigned plants
-  const assignedPlants = [
-    { id: "1", location: "Sector 15, Karachi", type: "RO" },
-    { id: "2", location: "Phase 2, Lahore", type: "UF" },
-    { id: "3", location: "Block A, Islamabad", type: "RO" },
-  ];
+  const [assignedPlants, setAssignedPlants] = useState<Plant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState<ReportFormData>({
     plantId: "",
@@ -85,11 +100,42 @@ const FillReport = () => {
     chemical_refill_litres: "",
     cartridge_filter_replacement: "",
     membrane_replacement: "",
+    notes: "",
     media: [],
   });
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => {
+    if (user) {
+      fetchAssignedPlants();
+    }
+  }, [user]);
+
+  const fetchAssignedPlants = async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch("http://localhost:3000/plants/assigned", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch assigned plants: ${response.status}`);
+      }
+
+      const plants = await response.json();
+      setAssignedPlants(plants);
+    } catch (err) {
+      console.error("Failed to load assigned plants", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load assigned plants"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (
     field: keyof ReportFormData,
@@ -182,10 +228,16 @@ const FillReport = () => {
 
   const handleSaveDraft = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    toast.success("Report saved as draft");
+    try {
+      // For now, we'll just show a success message
+      // In a real implementation, you might save to a drafts table
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      toast.success("Report saved as draft");
+    } catch (err) {
+      toast.error("Failed to save draft");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,38 +250,99 @@ const FillReport = () => {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // Prepare the report data for backend
+      const reportData = {
+        plant_id: formData.plantId,
+        raw_water_tds: parseFloat(formData.raw_water_tds),
+        permeate_water_tds: parseFloat(formData.permeate_water_tds),
+        raw_water_ph: parseFloat(formData.raw_water_ph),
+        permeate_water_ph: parseFloat(formData.permeate_water_ph),
+        product_water_tds: parseFloat(formData.product_water_tds),
+        product_water_flow: parseFloat(formData.product_water_flow),
+        product_water_ph: parseFloat(formData.product_water_ph),
+        reject_water_flow: parseFloat(formData.reject_water_flow),
+        membrane_inlet_pressure: parseFloat(formData.membrane_inlet_pressure),
+        membrane_outlet_pressure: parseFloat(formData.membrane_outlet_pressure),
+        raw_water_inlet_pressure: parseFloat(formData.raw_water_inlet_pressure),
+        volts_amperes: parseFloat(formData.volts_amperes),
+        multimedia_backwash: formData.multimedia_backwash,
+        carbon_backwash: formData.carbon_backwash,
+        membrane_cleaning: formData.membrane_cleaning,
+        arsenic_media_backwash: formData.arsenic_media_backwash,
+        cip: formData.cip,
+        chemical_refill_litres: parseFloat(formData.chemical_refill_litres),
+        cartridge_filter_replacement: parseInt(
+          formData.cartridge_filter_replacement
+        ),
+        membrane_replacement: parseInt(formData.membrane_replacement),
+        notes: formData.notes || "",
+      };
 
-    setIsSubmitting(false);
-    toast.success("Report submitted successfully!");
+      const response = await fetch("http://localhost:3000/reports", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(reportData),
+      });
 
-    // Reset form
-    setFormData({
-      plantId: "",
-      raw_water_tds: "",
-      permeate_water_tds: "",
-      raw_water_ph: "",
-      permeate_water_ph: "",
-      product_water_tds: "",
-      product_water_flow: "",
-      product_water_ph: "",
-      reject_water_flow: "",
-      membrane_inlet_pressure: "",
-      membrane_outlet_pressure: "",
-      raw_water_inlet_pressure: "",
-      volts_amperes: "",
-      multimedia_backwash: "",
-      carbon_backwash: "",
-      membrane_cleaning: "",
-      arsenic_media_backwash: "",
-      cip: false,
-      chemical_refill_litres: "",
-      cartridge_filter_replacement: "",
-      membrane_replacement: "",
-      media: [],
-    });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to submit report: ${response.status}`
+        );
+      }
+
+      toast.success("Report submitted successfully!");
+
+      // Reset form
+      setFormData({
+        plantId: "",
+        raw_water_tds: "",
+        permeate_water_tds: "",
+        raw_water_ph: "",
+        permeate_water_ph: "",
+        product_water_tds: "",
+        product_water_flow: "",
+        product_water_ph: "",
+        reject_water_flow: "",
+        membrane_inlet_pressure: "",
+        membrane_outlet_pressure: "",
+        raw_water_inlet_pressure: "",
+        volts_amperes: "",
+        multimedia_backwash: "",
+        carbon_backwash: "",
+        membrane_cleaning: "",
+        arsenic_media_backwash: "",
+        cip: false,
+        chemical_refill_litres: "",
+        cartridge_filter_replacement: "",
+        membrane_replacement: "",
+        notes: "",
+        media: [],
+      });
+    } catch (err) {
+      console.error("Failed to submit report", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to submit report"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-lg">Loading assigned plants...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -244,394 +357,515 @@ const FillReport = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Plant Selection */}
+      {assignedPlants.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5" />
-              Plant Information
-            </CardTitle>
-            <CardDescription>Select the plant for this report</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="plant">Select Plant *</Label>
-              <Select
-                value={formData.plantId}
-                onValueChange={(value) => handleInputChange("plantId", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a plant..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {assignedPlants.map((plant) => (
-                    <SelectItem key={plant.id} value={plant.id}>
-                      {plant.location} ({plant.type})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent className="text-center py-8">
+            <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Plants Assigned</h3>
+            <p className="text-muted-foreground">
+              You don't have any plants assigned to you yet. Contact your
+              administrator to get assigned to plants.
+            </p>
           </CardContent>
         </Card>
-
-        {/* Water Quality Measurements */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Water Quality Measurements</CardTitle>
-            <CardDescription>
-              Enter TDS, pH, and pressure readings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Plant Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" />
+                Plant Information
+              </CardTitle>
+              <CardDescription>
+                Select the plant for this report
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-2">
-                <Label htmlFor="rawTds">Raw TDS (ppm) *</Label>
-                <Input
-                  id="rawTds"
-                  type="number"
-                  value={formData.raw_water_tds}
-                  onChange={(e) =>
-                    handleInputChange("raw_water_tds", e.target.value)
-                  }
-                  placeholder="e.g., 850"
-                  required
-                />
+                <Label htmlFor="plant">Select Plant *</Label>
+                <Select
+                  value={formData.plantId}
+                  onValueChange={(value) => handleInputChange("plantId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a plant..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignedPlants.map((plant) => (
+                      <SelectItem key={plant.id} value={plant.id}>
+                        {plant.address} ({plant.type.toUpperCase()})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="permateTds">Permeate TDS (ppm) *</Label>
-                <Input
-                  id="permateTds"
-                  type="number"
-                  value={formData.permeate_water_tds}
-                  onChange={(e) =>
-                    handleInputChange("permeate_water_tds", e.target.value)
-                  }
-                  placeholder="e.g., 45"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="productTds">Product TDS (ppm) *</Label>
-                <Input
-                  id="productTds"
-                  type="number"
-                  value={formData.product_water_tds}
-                  onChange={(e) =>
-                    handleInputChange("product_water_tds", e.target.value)
-                  }
-                  placeholder="e.g., 35"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ph">pH Level *</Label>
-                <Input
-                  id="ph"
-                  type="number"
-                  step="0.1"
-                  value={formData.raw_water_ph}
-                  onChange={(e) =>
-                    handleInputChange("raw_water_ph", e.target.value)
-                  }
-                  placeholder="e.g., 7.2"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="membraneInletPressure">
-                  Membrane Inlet Pressure (PSI) *
-                </Label>
-                <Input
-                  id="membraneInletPressure"
-                  type="number"
-                  value={formData.membrane_inlet_pressure}
-                  onChange={(e) =>
-                    handleInputChange("membrane_inlet_pressure", e.target.value)
-                  }
-                  placeholder="e.g., 185"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="membraneOutletPressure">
-                  Membrane Outlet Pressure (PSI) *
-                </Label>
-                <Input
-                  id="membraneOutletPressure"
-                  type="number"
-                  value={formData.membrane_outlet_pressure}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "membrane_outlet_pressure",
-                      e.target.value
-                    )
-                  }
-                  placeholder="e.g., 95"
-                  required
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Flow and Electrical */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Flow Rate & Electrical Measurements</CardTitle>
-            <CardDescription>
-              Record flow rates and electrical readings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="flowRate">Flow Rate (LPH) *</Label>
-                <Input
-                  id="flowRate"
-                  type="number"
-                  value={formData.product_water_flow}
-                  onChange={(e) =>
-                    handleInputChange("product_water_flow", e.target.value)
-                  }
-                  placeholder="e.g., 950"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="voltage">Voltage (V) *</Label>
-                <Input
-                  id="voltage"
-                  type="number"
-                  value={formData.volts_amperes}
-                  onChange={(e) =>
-                    handleInputChange("volts_amperes", e.target.value)
-                  }
-                  placeholder="e.g., 220"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="amperage">Amperage (A) *</Label>
-                <Input
-                  id="amperage"
-                  type="number"
-                  step="0.1"
-                  value={formData.volts_amperes}
-                  onChange={(e) =>
-                    handleInputChange("volts_amperes", e.target.value)
-                  }
-                  placeholder="e.g., 5.2"
-                  required
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Maintenance Activities */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Maintenance Activities</CardTitle>
-            <CardDescription>
-              Record maintenance tasks and component replacements
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+          {/* Water Quality Measurements */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Water Quality Measurements</CardTitle>
+              <CardDescription>
+                Enter TDS, pH, and pressure readings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="backwash">Backwash *</Label>
-                  <Select
-                    value={formData.multimedia_backwash}
-                    onValueChange={(value) =>
-                      handleInputChange("multimedia_backwash", value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="done">Done</SelectItem>
-                      <SelectItem value="not_done">Not Done</SelectItem>
-                      <SelectItem value="not_required">Not Required</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cleaning">Cleaning *</Label>
-                  <Select
-                    value={formData.membrane_cleaning}
-                    onValueChange={(value) =>
-                      handleInputChange("membrane_cleaning", value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="done">Done</SelectItem>
-                      <SelectItem value="not_done">Not Done</SelectItem>
-                      <SelectItem value="not_required">Not Required</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cartridgeFilterReplacement">
-                    Cartridge Filter Replacement (0-2) *
-                  </Label>
+                  <Label htmlFor="rawTds">Raw TDS (ppm) *</Label>
                   <Input
-                    id="cartridgeFilterReplacement"
+                    id="rawTds"
                     type="number"
-                    min="0"
-                    max="2"
-                    value={formData.cartridge_filter_replacement}
+                    value={formData.raw_water_tds}
                     onChange={(e) =>
-                      handleInputChange(
-                        "cartridge_filter_replacement",
-                        e.target.value
-                      )
+                      handleInputChange("raw_water_tds", e.target.value)
                     }
-                    placeholder="0, 1, or 2"
+                    placeholder="e.g., 850"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="membraneReplacement">
-                    Membrane Replacement (0-8) *
-                  </Label>
+                  <Label htmlFor="permateTds">Permeate TDS (ppm) *</Label>
                   <Input
-                    id="membraneReplacement"
+                    id="permateTds"
                     type="number"
-                    min="0"
-                    max="8"
-                    value={formData.membrane_replacement}
+                    value={formData.permeate_water_tds}
                     onChange={(e) =>
-                      handleInputChange("membrane_replacement", e.target.value)
+                      handleInputChange("permeate_water_tds", e.target.value)
                     }
-                    placeholder="0 to 8"
+                    placeholder="e.g., 45"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="chemicalRefill">
-                    Chemical Refill (Litres) *
-                  </Label>
+                  <Label htmlFor="productTds">Product TDS (ppm) *</Label>
                   <Input
-                    id="chemicalRefill"
+                    id="productTds"
+                    type="number"
+                    value={formData.product_water_tds}
+                    onChange={(e) =>
+                      handleInputChange("product_water_tds", e.target.value)
+                    }
+                    placeholder="e.g., 35"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="rawPh">Raw Water pH *</Label>
+                  <Input
+                    id="rawPh"
                     type="number"
                     step="0.1"
-                    min="0"
-                    value={formData.chemical_refill_litres}
+                    value={formData.raw_water_ph}
+                    onChange={(e) =>
+                      handleInputChange("raw_water_ph", e.target.value)
+                    }
+                    placeholder="e.g., 7.2"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="permeatePh">Permeate Water pH *</Label>
+                  <Input
+                    id="permeatePh"
+                    type="number"
+                    step="0.1"
+                    value={formData.permeate_water_ph}
+                    onChange={(e) =>
+                      handleInputChange("permeate_water_ph", e.target.value)
+                    }
+                    placeholder="e.g., 6.8"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="productPh">Product Water pH *</Label>
+                  <Input
+                    id="productPh"
+                    type="number"
+                    step="0.1"
+                    value={formData.product_water_ph}
+                    onChange={(e) =>
+                      handleInputChange("product_water_ph", e.target.value)
+                    }
+                    placeholder="e.g., 6.5"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="membraneInletPressure">
+                    Membrane Inlet Pressure (PSI) *
+                  </Label>
+                  <Input
+                    id="membraneInletPressure"
+                    type="number"
+                    value={formData.membrane_inlet_pressure}
                     onChange={(e) =>
                       handleInputChange(
-                        "chemical_refill_litres",
+                        "membrane_inlet_pressure",
                         e.target.value
                       )
                     }
-                    placeholder="e.g., 5.5"
+                    placeholder="e.g., 185"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="membraneOutletPressure">
+                    Membrane Outlet Pressure (PSI) *
+                  </Label>
+                  <Input
+                    id="membraneOutletPressure"
+                    type="number"
+                    value={formData.membrane_outlet_pressure}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "membrane_outlet_pressure",
+                        e.target.value
+                      )
+                    }
+                    placeholder="e.g., 95"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="rawWaterInletPressure">
+                    Raw Water Inlet Pressure (PSI) *
+                  </Label>
+                  <Input
+                    id="rawWaterInletPressure"
+                    type="number"
+                    value={formData.raw_water_inlet_pressure}
+                    onChange={(e) =>
+                      handleInputChange(
+                        "raw_water_inlet_pressure",
+                        e.target.value
+                      )
+                    }
+                    placeholder="e.g., 200"
                     required
                   />
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Additional Notes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Notes</CardTitle>
-            <CardDescription>
-              Any additional observations or comments
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange("notes", e.target.value)}
-                placeholder="Enter any additional notes, observations, or issues..."
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Attach Pictures */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Attach Pictures
-            </CardTitle>
-            <CardDescription>
-              Add one or more images as evidence or documentation (optional)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleMediaChange}
-              className="mb-2"
-            />
-            <div className="flex flex-wrap gap-2">
-              {formData.media.map((media) => (
-                <div
-                  key={media.id}
-                  className="relative w-24 h-24 border rounded overflow-hidden"
-                >
-                  <img
-                    src={media.url}
-                    alt="Report media"
-                    className="object-cover w-full h-full"
+          {/* Flow and Electrical */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Flow Rate & Electrical Measurements</CardTitle>
+              <CardDescription>
+                Record flow rates and electrical readings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="flowRate">Product Water Flow (LPH) *</Label>
+                  <Input
+                    id="flowRate"
+                    type="number"
+                    value={formData.product_water_flow}
+                    onChange={(e) =>
+                      handleInputChange("product_water_flow", e.target.value)
+                    }
+                    placeholder="e.g., 950"
+                    required
                   />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSaveDraft}
-            disabled={isSaving || isSubmitting}
-            className="flex items-center gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? "Saving..." : "Save Draft"}
-          </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="rejectFlow">Reject Water Flow (LPH) *</Label>
+                  <Input
+                    id="rejectFlow"
+                    type="number"
+                    value={formData.reject_water_flow}
+                    onChange={(e) =>
+                      handleInputChange("reject_water_flow", e.target.value)
+                    }
+                    placeholder="e.g., 50"
+                    required
+                  />
+                </div>
 
-          <Button
-            type="submit"
-            disabled={isSaving || isSubmitting}
-            className="flex items-center gap-2"
-          >
-            <Send className="h-4 w-4" />
-            {isSubmitting ? "Submitting..." : "Submit Report"}
-          </Button>
-        </div>
-      </form>
+                <div className="space-y-2">
+                  <Label htmlFor="voltage">Volts/Amperes *</Label>
+                  <Input
+                    id="voltage"
+                    type="number"
+                    value={formData.volts_amperes}
+                    onChange={(e) =>
+                      handleInputChange("volts_amperes", e.target.value)
+                    }
+                    placeholder="e.g., 220"
+                    required
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Maintenance Activities */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Maintenance Activities</CardTitle>
+              <CardDescription>
+                Record maintenance tasks and component replacements
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="multimediaBackwash">
+                      Multimedia Backwash *
+                    </Label>
+                    <Select
+                      value={formData.multimedia_backwash}
+                      onValueChange={(value) =>
+                        handleInputChange("multimedia_backwash", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="not_done">Not Done</SelectItem>
+                        <SelectItem value="not_required">
+                          Not Required
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="carbonBackwash">Carbon Backwash *</Label>
+                    <Select
+                      value={formData.carbon_backwash}
+                      onValueChange={(value) =>
+                        handleInputChange("carbon_backwash", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="not_done">Not Done</SelectItem>
+                        <SelectItem value="not_required">
+                          Not Required
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="membraneCleaning">
+                      Membrane Cleaning *
+                    </Label>
+                    <Select
+                      value={formData.membrane_cleaning}
+                      onValueChange={(value) =>
+                        handleInputChange("membrane_cleaning", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="not_done">Not Done</SelectItem>
+                        <SelectItem value="not_required">
+                          Not Required
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="arsenicBackwash">
+                      Arsenic Media Backwash *
+                    </Label>
+                    <Select
+                      value={formData.arsenic_media_backwash}
+                      onValueChange={(value) =>
+                        handleInputChange("arsenic_media_backwash", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="not_done">Not Done</SelectItem>
+                        <SelectItem value="not_required">
+                          Not Required
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cartridgeFilterReplacement">
+                      Cartridge Filter Replacement (0-2) *
+                    </Label>
+                    <Input
+                      id="cartridgeFilterReplacement"
+                      type="number"
+                      min="0"
+                      max="2"
+                      value={formData.cartridge_filter_replacement}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "cartridge_filter_replacement",
+                          e.target.value
+                        )
+                      }
+                      placeholder="0, 1, or 2"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="membraneReplacement">
+                      Membrane Replacement (0-8) *
+                    </Label>
+                    <Input
+                      id="membraneReplacement"
+                      type="number"
+                      min="0"
+                      max="8"
+                      value={formData.membrane_replacement}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "membrane_replacement",
+                          e.target.value
+                        )
+                      }
+                      placeholder="0 to 8"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="chemicalRefill">
+                      Chemical Refill (Litres) *
+                    </Label>
+                    <Input
+                      id="chemicalRefill"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={formData.chemical_refill_litres}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "chemical_refill_litres",
+                          e.target.value
+                        )
+                      }
+                      placeholder="e.g., 5.5"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional Notes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional Notes</CardTitle>
+              <CardDescription>
+                Any additional observations or comments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  placeholder="Enter any additional notes, observations, or issues..."
+                  rows={4}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attach Pictures */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                Attach Pictures
+              </CardTitle>
+              <CardDescription>
+                Add one or more images as evidence or documentation (optional)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleMediaChange}
+                className="mb-2"
+              />
+              <div className="flex flex-wrap gap-2">
+                {formData.media.map((media) => (
+                  <div
+                    key={media.id}
+                    className="relative w-24 h-24 border rounded overflow-hidden"
+                  >
+                    <img
+                      src={media.url}
+                      alt="Report media"
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSaving || isSubmitting}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? "Saving..." : "Save Draft"}
+            </Button>
+
+            <Button
+              type="submit"
+              disabled={isSaving || isSubmitting}
+              className="flex items-center gap-2"
+            >
+              <Send className="h-4 w-4" />
+              {isSubmitting ? "Submitting..." : "Submit Report"}
+            </Button>
+          </div>
+        </form>
+      )}
     </div>
   );
 };

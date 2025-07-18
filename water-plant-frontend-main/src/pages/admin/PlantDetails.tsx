@@ -1,107 +1,317 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { StatusBadge } from '../../components/StatusBadge';
-import { Database, Filter, FileText, MapPin, User, Calendar } from 'lucide-react';
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import { Badge } from "../../components/ui/badge";
+import { StatusBadge } from "../../components/StatusBadge";
+import {
+  Database,
+  Filter,
+  FileText,
+  MapPin,
+  User,
+  Calendar,
+  Plus,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import { Label } from "../../components/ui/label";
 
 interface PlantDetail {
   id: string;
-  location: string;
-  type: 'UF' | 'RO';
-  assignedEmployee: string;
+  address: string;
+  type: "uf" | "ro";
   tehsil: string;
-  currentStatus: 'maintained' | 'pending' | 'warning';
-  lastReport: string;
   capacity: number;
-  reportsCount: number;
+  lat?: number;
+  lng?: number;
+  users?: Array<{
+    id: string;
+    name: string;
+    username: string;
+  }>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface CreatePlantData {
+  address: string;
+  type: "uf" | "ro";
+  tehsil: string;
+  capacity: number;
+  lat?: number;
+  lng?: number;
+  userIds?: string[];
 }
 
 const PlantDetails = () => {
-  const [plants] = useState<PlantDetail[]>([
-    {
-      id: '1',
-      location: 'Sector 15, Karachi',
-      type: 'RO',
-      assignedEmployee: 'John Doe',
-      tehsil: 'Karachi South',
-      currentStatus: 'maintained',
-      lastReport: '2 days ago',
-      capacity: 1000,
-      reportsCount: 15
-    },
-    {
-      id: '2',
-      location: 'Phase 2, Lahore',
-      type: 'UF',
-      assignedEmployee: 'Jane Smith',
-      tehsil: 'Lahore Cantt',
-      currentStatus: 'pending',
-      lastReport: '5 days ago',
-      capacity: 2000,
-      reportsCount: 8
-    },
-    {
-      id: '3',
-      location: 'Block A, Islamabad',
-      type: 'RO',
-      assignedEmployee: 'Ahmed Ali',
-      tehsil: 'Islamabad',
-      currentStatus: 'warning',
-      lastReport: '18 days ago',
-      capacity: 500,
-      reportsCount: 3
-    },
-    {
-      id: '4',
-      location: 'Garden Town, Lahore',
-      type: 'RO',
-      assignedEmployee: 'Sarah Khan',
-      tehsil: 'Lahore City',
-      currentStatus: 'maintained',
-      lastReport: '1 day ago',
-      capacity: 1000,
-      reportsCount: 22
-    },
-    {
-      id: '5',
-      location: 'Gulshan, Karachi',
-      type: 'UF',
-      assignedEmployee: 'Ali Hassan',
-      tehsil: 'Karachi East',
-      currentStatus: 'warning',
-      lastReport: '16 days ago',
-      capacity: 2000,
-      reportsCount: 5
+  const [plants, setPlants] = useState<PlantDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingPlant, setEditingPlant] = useState<PlantDetail | null>(null);
+  const [formData, setFormData] = useState<CreatePlantData>({
+    address: "",
+    type: "ro",
+    tehsil: "",
+    capacity: 1000,
+    lat: undefined,
+    lng: undefined,
+    userIds: [],
+  });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tehsilFilter, setTehsilFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+
+  useEffect(() => {
+    fetchPlants();
+  }, []);
+
+  const fetchPlants = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:3000/plants", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("You don't have permission to view plants");
+        }
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setPlants(data);
+    } catch (err) {
+      console.error("Failed to load plants", err);
+      toast.error(err instanceof Error ? err.message : "Failed to load plants");
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [tehsilFilter, setTehsilFilter] = useState<string>('all');
-  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const uniqueTehsils = [...new Set(plants.map(plant => plant.tehsil))];
-  const uniqueEmployees = [...new Set(plants.map(plant => plant.assignedEmployee))];
+    try {
+      let response;
+      const payload: any = {
+        address: formData.address,
+        type: formData.type,
+        tehsil: formData.tehsil,
+        capacity: formData.capacity,
+      };
 
-  const filteredPlants = plants.filter(plant => {
-    const matchesSearch = plant.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         plant.assignedEmployee.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || plant.currentStatus === statusFilter;
-    const matchesTehsil = tehsilFilter === 'all' || plant.tehsil === tehsilFilter;
-    const matchesEmployee = employeeFilter === 'all' || plant.assignedEmployee === employeeFilter;
-    
+      if (formData.lat !== undefined) {
+        payload.lat = formData.lat;
+      }
+      if (formData.lng !== undefined) {
+        payload.lng = formData.lng;
+      }
+      if (formData.userIds && formData.userIds.length > 0) {
+        payload.userIds = formData.userIds;
+      }
+
+      if (editingPlant) {
+        response = await fetch(
+          `http://localhost:3000/plants/${editingPlant.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          }
+        );
+      } else {
+        response = await fetch("http://localhost:3000/plants", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Something went wrong");
+      }
+
+      toast.success(
+        editingPlant ? "Plant updated successfully" : "Plant added successfully"
+      );
+      setIsDialogOpen(false);
+      resetForm();
+      fetchPlants();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    }
+  };
+
+  const handleEdit = (plant: PlantDetail) => {
+    setEditingPlant(plant);
+    setFormData({
+      address: plant.address,
+      type: plant.type,
+      tehsil: plant.tehsil,
+      capacity: plant.capacity,
+      lat: plant.lat,
+      lng: plant.lng,
+      userIds: plant.users?.map((user) => user.id) || [],
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3000/plants/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete plant");
+      }
+
+      toast.success("Plant deleted successfully");
+      fetchPlants();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete plant"
+      );
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      address: "",
+      type: "ro",
+      tehsil: "",
+      capacity: 1000,
+      lat: undefined,
+      lng: undefined,
+      userIds: [],
+    });
+    setEditingPlant(null);
+  };
+
+  // Helper function to get assigned employees as string
+  const getAssignedEmployees = (plant: PlantDetail) => {
+    if (!plant.users || plant.users.length === 0) {
+      return "No employees assigned";
+    }
+    return plant.users.map((user) => user.name).join(", ");
+  };
+
+  // Helper function to determine status based on last activity
+  const getPlantStatus = (plant: PlantDetail) => {
+    if (!plant.updated_at) return "pending";
+
+    const lastUpdate = new Date(plant.updated_at);
+    const now = new Date();
+    const daysDiff =
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24);
+
+    if (daysDiff <= 7) return "maintained";
+    if (daysDiff <= 14) return "pending";
+    return "warning";
+  };
+
+  // Helper function to get last report time
+  const getLastReport = (plant: PlantDetail) => {
+    if (!plant.updated_at) return "Never";
+
+    const lastUpdate = new Date(plant.updated_at);
+    const now = new Date();
+    const daysDiff = Math.floor(
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+    );
+
+    if (daysDiff === 0) return "Today";
+    if (daysDiff === 1) return "1 day ago";
+    return `${daysDiff} days ago`;
+  };
+
+  const uniqueTehsils = [...new Set(plants.map((plant) => plant.tehsil))];
+  const allEmployees = plants
+    .flatMap((plant) => plant.users || [])
+    .filter(
+      (user, index, arr) => arr.findIndex((u) => u.id === user.id) === index
+    );
+
+  const filteredPlants = plants.filter((plant) => {
+    const matchesSearch =
+      plant.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getAssignedEmployees(plant)
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || getPlantStatus(plant) === statusFilter;
+    const matchesTehsil =
+      tehsilFilter === "all" || plant.tehsil === tehsilFilter;
+    const matchesEmployee =
+      employeeFilter === "all" ||
+      plant.users?.some((user) => user.id === employeeFilter);
+
     return matchesSearch && matchesStatus && matchesTehsil && matchesEmployee;
   });
 
   const statusCounts = {
-    maintained: plants.filter(p => p.currentStatus === 'maintained').length,
-    pending: plants.filter(p => p.currentStatus === 'pending').length,
-    warning: plants.filter(p => p.currentStatus === 'warning').length
+    maintained: plants.filter((p) => getPlantStatus(p) === "maintained").length,
+    pending: plants.filter((p) => getPlantStatus(p) === "pending").length,
+    warning: plants.filter((p) => getPlantStatus(p) === "warning").length,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading plants...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -112,6 +322,142 @@ const PlantDetails = () => {
             Monitor plant status and access detailed reports
           </p>
         </div>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={resetForm} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Plant
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingPlant ? "Edit Plant" : "Add New Plant"}
+              </DialogTitle>
+              <DialogDescription>
+                {editingPlant
+                  ? "Update plant information"
+                  : "Add a new water treatment plant to the system"}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  placeholder="Plant address"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="type">Type</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: "uf" | "ro") =>
+                    setFormData({ ...formData, type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ro">RO</SelectItem>
+                    <SelectItem value="uf">UF</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tehsil">Tehsil</Label>
+                <Input
+                  id="tehsil"
+                  value={formData.tehsil}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tehsil: e.target.value })
+                  }
+                  placeholder="Tehsil name"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="capacity">Capacity (Liters)</Label>
+                <Input
+                  id="capacity"
+                  type="number"
+                  value={formData.capacity}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      capacity: parseInt(e.target.value),
+                    })
+                  }
+                  placeholder="1000"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="lat">Latitude (Optional)</Label>
+                  <Input
+                    id="lat"
+                    type="number"
+                    step="any"
+                    value={formData.lat || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        lat: e.target.value
+                          ? parseFloat(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder="0.000000"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lng">Longitude (Optional)</Label>
+                  <Input
+                    id="lng"
+                    type="number"
+                    step="any"
+                    value={formData.lng || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        lng: e.target.value
+                          ? parseFloat(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder="0.000000"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingPlant ? "Update Plant" : "Add Plant"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Status Summary */}
@@ -132,7 +478,9 @@ const PlantDetails = () => {
             <div className="w-3 h-3 bg-success rounded-full"></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{statusCounts.maintained}</div>
+            <div className="text-2xl font-bold text-success">
+              {statusCounts.maintained}
+            </div>
           </CardContent>
         </Card>
 
@@ -142,7 +490,9 @@ const PlantDetails = () => {
             <div className="w-3 h-3 bg-warning rounded-full"></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">{statusCounts.pending}</div>
+            <div className="text-2xl font-bold text-warning">
+              {statusCounts.pending}
+            </div>
           </CardContent>
         </Card>
 
@@ -152,7 +502,9 @@ const PlantDetails = () => {
             <div className="w-3 h-3 bg-danger rounded-full"></div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-danger">{statusCounts.warning}</div>
+            <div className="text-2xl font-bold text-danger">
+              {statusCounts.warning}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -170,7 +522,7 @@ const PlantDetails = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Search</label>
               <Input
-                placeholder="Search location or employee..."
+                placeholder="Search address or employee..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -199,8 +551,10 @@ const PlantDetails = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tehsils</SelectItem>
-                  {uniqueTehsils.map(tehsil => (
-                    <SelectItem key={tehsil} value={tehsil}>{tehsil}</SelectItem>
+                  {uniqueTehsils.map((tehsil) => (
+                    <SelectItem key={tehsil} value={tehsil}>
+                      {tehsil}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -214,8 +568,10 @@ const PlantDetails = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {uniqueEmployees.map(employee => (
-                    <SelectItem key={employee} value={employee}>{employee}</SelectItem>
+                  {allEmployees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -236,57 +592,51 @@ const PlantDetails = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Location</TableHead>
+                <TableHead>Address</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Assigned Employee</TableHead>
+                <TableHead>Assigned Employees</TableHead>
                 <TableHead>Tehsil</TableHead>
                 <TableHead>Current Status</TableHead>
                 <TableHead>Last Report</TableHead>
-                <TableHead>Reports Count</TableHead>
+                <TableHead>Capacity (L)</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPlants.map((plant) => (
                 <TableRow key={plant.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <div>{plant.location}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {plant.capacity} LPH
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
+                  <TableCell className="font-medium">{plant.address}</TableCell>
                   <TableCell>
-                    <Badge variant={plant.type === 'RO' ? 'default' : 'secondary'}>
-                      {plant.type}
+                    <Badge
+                      variant={plant.type === "ro" ? "default" : "secondary"}
+                    >
+                      {plant.type.toUpperCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      {plant.assignedEmployee}
-                    </div>
-                  </TableCell>
+                  <TableCell>{getAssignedEmployees(plant)}</TableCell>
                   <TableCell>{plant.tehsil}</TableCell>
                   <TableCell>
-                    <StatusBadge status={plant.currentStatus} />
+                    <StatusBadge status={getPlantStatus(plant)} />
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {plant.lastReport}
-                    </div>
-                  </TableCell>
-                  <TableCell>{plant.reportsCount}</TableCell>
+                  <TableCell>{getLastReport(plant)}</TableCell>
+                  <TableCell>{plant.capacity.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Show Reports
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(plant)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(plant.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

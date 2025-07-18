@@ -1,18 +1,18 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
-import { 
-  Users, 
-  Settings, 
-  Database, 
-  FileText, 
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { Button } from "./ui/button";
+import {
+  Users,
+  Settings,
+  Database,
+  FileText,
   TrendingUp,
   User,
   ClipboardList,
   History,
   LogOut,
-  Home
-} from 'lucide-react';
+  Home,
+} from "lucide-react";
 
 export const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -20,25 +20,25 @@ export const Sidebar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const adminNavItems = [
-    { to: '/admin', icon: Home, label: 'Dashboard' },
-    { to: '/admin/employees', icon: Users, label: 'Manage Employees' },
-    { to: '/admin/plants', icon: Database, label: 'Manage Plants' },
-    { to: '/admin/plant-details', icon: Settings, label: 'Plant Details' },
-    { to: '/admin/reports', icon: FileText, label: 'Quality Reports' },
-    { to: '/admin/analytics', icon: TrendingUp, label: 'Analytics' },
+    { to: "/admin", icon: Home, label: "Dashboard" },
+    { to: "/admin/employees", icon: Users, label: "Manage Employees" },
+    { to: "/admin/plants", icon: Database, label: "Manage Plants" },
+    { to: "/admin/plant-details", icon: Settings, label: "Plant Details" },
+    { to: "/admin/reports", icon: FileText, label: "Quality Reports" },
+    { to: "/admin/analytics", icon: TrendingUp, label: "Analytics" },
   ];
 
-  const employeeNavItems = [
-    { to: '/employee', icon: Home, label: 'Dashboard' },
-    { to: '/employee/fill-report', icon: ClipboardList, label: 'Fill Out Report' },
-    { to: '/employee/work-history', icon: History, label: 'Work History' },
+  const userNavItems = [
+    { to: "/user", icon: Home, label: "Dashboard" },
+    { to: "/user/fill-report", icon: ClipboardList, label: "Fill Out Report" },
+    { to: "/user/work-history", icon: History, label: "Work History" },
   ];
 
-  const navItems = user?.role === 'admin' ? adminNavItems : employeeNavItems;
+  const navItems = user?.role === "admin" ? adminNavItems : userNavItems;
 
   return (
     <div className="w-64 bg-card border-r shadow-lg flex flex-col">
@@ -61,12 +61,12 @@ export const Sidebar = () => {
             <li key={item.to}>
               <NavLink
                 to={item.to}
-                end={item.to.endsWith('/admin') || item.to.endsWith('/employee')}
+                end={item.to.endsWith("/admin") || item.to.endsWith("/user")}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`
                 }
               >

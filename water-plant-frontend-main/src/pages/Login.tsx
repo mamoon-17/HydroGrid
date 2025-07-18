@@ -19,7 +19,12 @@ const Login = () => {
   const { user, login, isLoading } = useAuth();
   const navigate = useNavigate();
 
+  // Debug: Log user data when it changes
+  console.log("Current user data:", user);
+  console.log("User role:", user?.role);
+
   if (user) {
+    console.log("Redirecting to:", `/${user.role}`);
     return <Navigate to={`/${user.role}`} replace />;
   }
 
@@ -36,11 +41,15 @@ const Login = () => {
       return;
     }
 
+    console.log("Attempting login with username:", username);
     const success = await login(username, password);
 
     if (success) {
       toast.success("Login successful!");
-      navigate(`/${username === "admin" ? "admin" : "employee"}`);
+      console.log("Login successful, user should be updated");
+      // The redirect will be handled by the AuthContext after login
+      // The user state will be updated and the component will re-render
+      // with the correct user role, triggering the redirect above
     } else {
       toast.error("Invalid credentials");
     }
