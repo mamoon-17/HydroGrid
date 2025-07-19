@@ -35,7 +35,7 @@ export class Users {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ type: 'varchar', length: 16 })
+  @Column({ type: 'varchar', unique: true, length: 16 })
   phone: string;
 
   @ManyToMany(() => Plants, (plant) => plant.users)

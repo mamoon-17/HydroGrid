@@ -42,6 +42,7 @@ interface Employee {
 }
 
 const countryOptions = [
+  { code: "", label: "Select Country Code", dialCode: "" },
   { code: "PK", label: "PK (+92)", dialCode: "92" },
   { code: "US", label: "US (+1)", dialCode: "1" },
   { code: "IN", label: "IN (+91)", dialCode: "91" },
@@ -57,10 +58,16 @@ const ManageEmployees = () => {
     username: "",
     password: "",
     phone: "",
-    country: "PK",
+    country: "",
     email: "",
     role: "user" as "admin" | "user",
   });
+  const [fieldErrors, setFieldErrors] = useState({
+    username: "",
+    phone: "",
+    email: "",
+  });
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     fetchEmployees();
@@ -71,54 +78,126 @@ const ManageEmployees = () => {
       setLoading(true);
       const res = await fetch("http://localhost:3000/users", {
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
       });
 
-      if (!res.ok) {
-        if (res.status === 403) {
-          throw new Error("You don't have permission to view employees");
-        }
-        throw new Error(`Failed to fetch: ${res.status}`);
+      const contentType = res.headers.get("content-type");
+      if (!res.ok || !contentType?.includes("application/json")) {
+        const text = await res.text();
+        throw new Error("Unexpected response format");
       }
 
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
       console.error("Failed to load employees", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to load employees"
-      );
+      toast.error("Failed to load employees");
     } finally {
       setLoading(false);
     }
   };
 
+  const checkFieldExists = (field: string, value: string) => {
+    return employees.some((emp) => {
+      if (field === "phone") {
+        // For phone numbers, we need to compare the full number with country code
+        const fullNumber = formData.country
+          ? `+${
+              countryOptions.find((c) => c.code === formData.country)
+                ?.dialCode || ""
+            }${value}`
+          : value;
+        return (
+          emp.phone === fullNumber &&
+          (!editingEmployee || emp.id !== editingEmployee.id)
+        );
+      }
+      return (
+        emp[field as keyof Employee]?.toString().toLowerCase() ===
+          value.toLowerCase() &&
+        (!editingEmployee || emp.id !== editingEmployee.id)
+      );
+    });
+  };
+
+  const validateFields = () => {
+    const errors = {
+      username: "",
+      phone: "",
+      email: "",
+    };
+
+    if (!editingEmployee && !formData.username) {
+      errors.username = "Username is required";
+    } else if (
+      formData.username &&
+      checkFieldExists("username", formData.username)
+    ) {
+      errors.username = "Username already taken";
+    }
+
+    if (!editingEmployee && !formData.phone) {
+      errors.phone = "Phone number is required";
+    } else if (formData.phone) {
+      // Check if phone with selected country code already exists
+      const fullNumber = formData.country
+        ? `+${
+            countryOptions.find((c) => c.code === formData.country)?.dialCode ||
+            ""
+          }${formData.phone}`
+        : formData.phone;
+
+      if (
+        employees.some(
+          (emp) =>
+            emp.phone === fullNumber &&
+            (!editingEmployee || emp.id !== editingEmployee.id)
+        )
+      ) {
+        errors.phone = "Phone number already exists";
+      }
+    }
+
+    if (formData.email && checkFieldExists("email", formData.email)) {
+      errors.email = "Email already exists";
+    }
+
+    setFieldErrors(errors);
+    return !Object.values(errors).some((error) => error !== "");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
+
+    if (!validateFields()) {
+      return;
+    }
 
     try {
       let response;
       const payload: any = {
         name: formData.name,
+        username: formData.username,
+        email: formData.email || null,
         role: formData.role,
       };
 
-      // Only include fields that are being updated
-      if (formData.email) {
-        payload.email = formData.email;
-      }
-
-      // Handle phone and country according to schema
-      if (formData.phone) {
-        payload.phone = formData.phone;
+      // Include country only if phone is being updated or it's a new user
+      if (formData.phone || !editingEmployee) {
+        if (!formData.country) {
+          throw new Error("Country code is required");
+        }
         payload.country = formData.country;
       }
 
-      // Only include password if it's provided (for new users or when changing password)
+      // Only include password if it's provided
       if (formData.password) {
         payload.password = formData.password;
+      }
+
+      // Only include phone if it's provided
+      if (formData.phone) {
+        payload.phone = formData.phone;
       }
 
       if (editingEmployee) {
@@ -134,28 +213,44 @@ const ManageEmployees = () => {
           }
         );
       } else {
-        // For new users, phone and username are required
-        if (!formData.phone || !formData.username) {
-          toast.error("Phone number and username are required for new users");
+        if (!formData.phone) {
+          toast.error("Phone number is required for new users");
           return;
         }
-        payload.username = formData.username;
-        payload.phone = formData.phone;
-        payload.country = formData.country;
-
+        if (!formData.country) {
+          toast.error("Country code is required for new users");
+          return;
+        }
         response = await fetch("http://localhost:3000/users", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...payload,
+            phone: formData.phone,
+            country: formData.country,
+          }),
         });
       }
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Something went wrong");
+        if (errorData.message) {
+          // Extract specific error messages
+          if (errorData.message.includes("username")) {
+            setSubmitError("Username is already taken");
+          } else if (errorData.message.includes("email")) {
+            setSubmitError("Email is already registered");
+          } else if (errorData.message.includes("phone")) {
+            setSubmitError("Phone number is already registered");
+          } else {
+            setSubmitError(errorData.message);
+          }
+          throw new Error(errorData.message);
+        }
+        throw new Error("Something went wrong");
       }
 
       toast.success(
@@ -168,9 +263,9 @@ const ManageEmployees = () => {
       fetchEmployees();
     } catch (error) {
       console.error(error);
-      toast.error(
-        error instanceof Error ? error.message : "Something went wrong"
-      );
+      if (!submitError) {
+        toast.error("Something went wrong");
+      }
     }
   };
 
@@ -196,17 +291,15 @@ const ManageEmployees = () => {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to delete employee");
+        const err = await res.text();
+        throw new Error(err);
       }
 
       toast.success("Employee deleted successfully");
       fetchEmployees();
     } catch (error) {
       console.error(error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete employee"
-      );
+      toast.error("Failed to delete employee");
     }
   };
 
@@ -216,10 +309,16 @@ const ManageEmployees = () => {
       username: "",
       password: "",
       phone: "",
-      country: "PK",
+      country: "",
       email: "",
       role: "user",
     });
+    setFieldErrors({
+      username: "",
+      phone: "",
+      email: "",
+    });
+    setSubmitError("");
     setEditingEmployee(null);
   };
 
@@ -255,6 +354,10 @@ const ManageEmployees = () => {
             </DialogHeader>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {submitError && (
+                <div className="text-red-500 text-sm">{submitError}</div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <Input
@@ -282,7 +385,11 @@ const ManageEmployees = () => {
                   placeholder="Enter username"
                   required={!editingEmployee}
                   disabled={editingEmployee !== null}
+                  className={editingEmployee ? "bg-gray-100" : ""}
                 />
+                {fieldErrors.username && (
+                  <p className="text-sm text-red-500">{fieldErrors.username}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -338,11 +445,16 @@ const ManageEmployees = () => {
                         ? "Leave empty to keep current"
                         : "3001234567"
                     }
-                    pattern={formData.phone ? "^[0-9]{11}$" : undefined}
+                    pattern={formData.phone ? "^[1-9][0-9]{9,}$" : undefined}
                   />
                 </div>
-                {!editingEmployee && (
-                  <p className="text-sm text-muted-foreground"></p>
+                {fieldErrors.phone && (
+                  <p className="text-sm text-red-500">{fieldErrors.phone}</p>
+                )}
+                {!editingEmployee && !fieldErrors.phone && (
+                  <p className="text-sm text-muted-foreground">
+                    Phone number is required for new users
+                  </p>
                 )}
               </div>
 
@@ -357,6 +469,9 @@ const ManageEmployees = () => {
                   }
                   placeholder="Enter email address"
                 />
+                {fieldErrors.email && (
+                  <p className="text-sm text-red-500">{fieldErrors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
