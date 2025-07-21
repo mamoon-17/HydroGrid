@@ -47,6 +47,20 @@ import {
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 
+// 1. Add Employee type
+interface Employee {
+  id: string;
+  name: string;
+  username: string;
+  phone: string;
+  country: string;
+  email?: string | null;
+  role: "admin" | "user";
+  assignedPlants?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface PlantDetail {
   id: string;
   address: string;
@@ -55,11 +69,7 @@ interface PlantDetail {
   capacity: number;
   lat?: number;
   lng?: number;
-  users?: Array<{
-    id: string;
-    name: string;
-    username: string;
-  }>;
+  employee?: Employee; // single employee
   created_at?: string;
   updated_at?: string;
 }
@@ -71,7 +81,7 @@ interface CreatePlantData {
   capacity: number;
   lat?: number;
   lng?: number;
-  userIds?: string[];
+  employeeId?: string; // single employee
 }
 
 const PlantDetails = () => {
@@ -86,8 +96,9 @@ const PlantDetails = () => {
     capacity: 1000,
     lat: undefined,
     lng: undefined,
-    userIds: [],
+    employeeId: undefined,
   });
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -96,6 +107,7 @@ const PlantDetails = () => {
 
   useEffect(() => {
     fetchPlants();
+    fetchEmployees();
   }, []);
 
   const fetchPlants = async () => {
@@ -116,12 +128,30 @@ const PlantDetails = () => {
       }
 
       const data = await res.json();
-      setPlants(data);
+      setPlants(
+        data.map((plant: any) => ({
+          ...plant,
+          employee: plant.user || undefined, // map user to employee for UI
+        }))
+      );
     } catch (err) {
       console.error("Failed to load plants", err);
       toast.error(err instanceof Error ? err.message : "Failed to load plants");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/users", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch employees");
+      const data = await res.json();
+      setEmployees(data);
+    } catch (err) {
+      toast.error("Failed to load employees");
     }
   };
 
@@ -143,8 +173,10 @@ const PlantDetails = () => {
       if (formData.lng !== undefined) {
         payload.lng = formData.lng;
       }
-      if (formData.userIds && formData.userIds.length > 0) {
-        payload.userIds = formData.userIds;
+      if (formData.employeeId === "none") {
+        payload.userId = null;
+      } else if (formData.employeeId) {
+        payload.userId = formData.employeeId;
       }
 
       if (editingPlant) {
@@ -160,6 +192,9 @@ const PlantDetails = () => {
           }
         );
       } else {
+        // This case should ideally not be reached for adding plants,
+        // but keeping it for consistency if the backend expects a POST.
+        // For now, it will be handled by the PATCH logic.
         response = await fetch("http://localhost:3000/plants", {
           method: "POST",
           headers: {
@@ -198,7 +233,7 @@ const PlantDetails = () => {
       capacity: plant.capacity,
       lat: plant.lat,
       lng: plant.lng,
-      userIds: plant.users?.map((user) => user.id) || [],
+      employeeId: plant.employee?.id || "none",
     });
     setIsDialogOpen(true);
   };
@@ -233,17 +268,17 @@ const PlantDetails = () => {
       capacity: 1000,
       lat: undefined,
       lng: undefined,
-      userIds: [],
+      employeeId: undefined,
     });
     setEditingPlant(null);
   };
 
-  // Helper function to get assigned employees as string
-  const getAssignedEmployees = (plant: PlantDetail) => {
-    if (!plant.users || plant.users.length === 0) {
-      return "No employees assigned";
+  // Helper function to get assigned employee as string
+  const getAssignedEmployee = (plant: PlantDetail) => {
+    if (!plant.employee) {
+      return "No employee assigned";
     }
-    return plant.users.map((user) => user.name).join(", ");
+    return plant.employee.name;
   };
 
   // Helper function to determine status based on last activity
@@ -276,25 +311,20 @@ const PlantDetails = () => {
   };
 
   const uniqueTehsils = [...new Set(plants.map((plant) => plant.tehsil))];
-  const allEmployees = plants
-    .flatMap((plant) => plant.users || [])
-    .filter(
-      (user, index, arr) => arr.findIndex((u) => u.id === user.id) === index
-    );
+  const allEmployees = employees;
 
   const filteredPlants = plants.filter((plant) => {
+    const search = searchTerm.toLowerCase();
     const matchesSearch =
-      plant.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getAssignedEmployees(plant)
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      plant.address.toLowerCase().includes(search) ||
+      (plant.employee?.name?.toLowerCase().includes(search) ?? false) ||
+      (plant.employee?.username?.toLowerCase().includes(search) ?? false);
     const matchesStatus =
       statusFilter === "all" || getPlantStatus(plant) === statusFilter;
     const matchesTehsil =
       tehsilFilter === "all" || plant.tehsil === tehsilFilter;
     const matchesEmployee =
-      employeeFilter === "all" ||
-      plant.users?.some((user) => user.id === employeeFilter);
+      employeeFilter === "all" || plant.employee?.id === employeeFilter;
 
     return matchesSearch && matchesStatus && matchesTehsil && matchesEmployee;
   });
@@ -322,142 +352,6 @@ const PlantDetails = () => {
             Monitor plant status and access detailed reports
           </p>
         </div>
-
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Plant
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingPlant ? "Edit Plant" : "Add New Plant"}
-              </DialogTitle>
-              <DialogDescription>
-                {editingPlant
-                  ? "Update plant information"
-                  : "Add a new water treatment plant to the system"}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  placeholder="Plant address"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: "uf" | "ro") =>
-                    setFormData({ ...formData, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ro">RO</SelectItem>
-                    <SelectItem value="uf">UF</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tehsil">Tehsil</Label>
-                <Input
-                  id="tehsil"
-                  value={formData.tehsil}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tehsil: e.target.value })
-                  }
-                  placeholder="Tehsil name"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity (Liters)</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      capacity: parseInt(e.target.value),
-                    })
-                  }
-                  placeholder="1000"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="lat">Latitude (Optional)</Label>
-                  <Input
-                    id="lat"
-                    type="number"
-                    step="any"
-                    value={formData.lat || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        lat: e.target.value
-                          ? parseFloat(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder="0.000000"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lng">Longitude (Optional)</Label>
-                  <Input
-                    id="lng"
-                    type="number"
-                    step="any"
-                    value={formData.lng || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        lng: e.target.value
-                          ? parseFloat(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder="0.000000"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingPlant ? "Update Plant" : "Add Plant"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Status Summary */}
@@ -594,7 +488,7 @@ const PlantDetails = () => {
               <TableRow>
                 <TableHead>Address</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Assigned Employees</TableHead>
+                <TableHead>Assigned Employee</TableHead>
                 <TableHead>Tehsil</TableHead>
                 <TableHead>Current Status</TableHead>
                 <TableHead>Last Report</TableHead>
@@ -613,7 +507,7 @@ const PlantDetails = () => {
                       {plant.type.toUpperCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell>{getAssignedEmployees(plant)}</TableCell>
+                  <TableCell>{getAssignedEmployee(plant)}</TableCell>
                   <TableCell>{plant.tehsil}</TableCell>
                   <TableCell>
                     <StatusBadge status={getPlantStatus(plant)} />
@@ -644,6 +538,146 @@ const PlantDetails = () => {
           </Table>
         </CardContent>
       </Card>
+      {/* Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Plant</DialogTitle>
+            <DialogDescription>Update plant information</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                placeholder="Plant address"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Type</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value: "uf" | "ro") =>
+                  setFormData({ ...formData, type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ro">RO</SelectItem>
+                  <SelectItem value="uf">UF</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tehsil">Tehsil</Label>
+              <Input
+                id="tehsil"
+                value={formData.tehsil}
+                onChange={(e) =>
+                  setFormData({ ...formData, tehsil: e.target.value })
+                }
+                placeholder="Tehsil name"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="capacity">Capacity (Liters)</Label>
+              <Input
+                id="capacity"
+                type="number"
+                value={formData.capacity}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    capacity: parseInt(e.target.value),
+                  })
+                }
+                placeholder="1000"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="lat">Latitude (Optional)</Label>
+                <Input
+                  id="lat"
+                  type="number"
+                  step="any"
+                  value={formData.lat || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      lat: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  placeholder="0.000000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lng">Longitude (Optional)</Label>
+                <Input
+                  id="lng"
+                  type="number"
+                  step="any"
+                  value={formData.lng || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      lng: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  placeholder="0.000000"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employee">Assigned Employee</Label>
+              <Select
+                value={formData.employeeId || "none"}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    employeeId: value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Update Plant</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

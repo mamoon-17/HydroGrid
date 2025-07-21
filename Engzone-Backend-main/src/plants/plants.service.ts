@@ -46,6 +46,17 @@ export class PlantsService {
       user = foundUser;
     }
 
+    // Compute point from lat/lng
+    let point: string | undefined = undefined;
+    if (
+      lat !== undefined &&
+      lng !== undefined &&
+      lat !== null &&
+      lng !== null
+    ) {
+      point = `(${lng},${lat})`;
+    }
+
     const plant = this.plantsRepo.create({
       address,
       lat,
@@ -54,6 +65,7 @@ export class PlantsService {
       type,
       capacity,
       user,
+      point,
     });
 
     return this.plantsRepo.save(plant);
@@ -90,7 +102,7 @@ export class PlantsService {
       throw new NotFoundException('Plant not found');
     }
 
-    const { userId, tehsil, ...rest } = updates;
+    const { userId, tehsil, lat, lng, ...rest } = updates;
 
     if (userId === null) {
       // Unassign user
@@ -103,6 +115,21 @@ export class PlantsService {
 
     if (tehsil) {
       existing.tehsil = tehsil.trim().toLowerCase();
+    }
+
+    // Update lat/lng if provided
+    if (lat !== undefined) existing.lat = lat;
+    if (lng !== undefined) existing.lng = lng;
+    // Compute point from lat/lng
+    if (
+      existing.lat !== undefined &&
+      existing.lng !== undefined &&
+      existing.lat !== null &&
+      existing.lng !== null
+    ) {
+      existing.point = `(${existing.lng},${existing.lat})`;
+    } else {
+      existing.point = undefined;
     }
 
     Object.assign(existing, rest);

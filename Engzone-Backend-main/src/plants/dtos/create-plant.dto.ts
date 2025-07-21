@@ -8,7 +8,7 @@ export const CreatePlantSchema = z.object({
   tehsil: z.string().min(1),
   type: z.enum(PlantType),
   capacity: z.coerce.number().int().positive(),
-  userId: z.uuid().optional(),
+  userId: z.union([z.uuid(), z.null()]).optional(),
 });
 
 export type CreatePlantDto = z.infer<typeof CreatePlantSchema>;
