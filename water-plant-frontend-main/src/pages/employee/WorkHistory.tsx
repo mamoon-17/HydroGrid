@@ -81,6 +81,7 @@ interface Report {
   notes?: string;
   created_at: string;
   updated_at: string;
+  edit_count: number; // Added for edit count
 }
 
 const WorkHistory = () => {
@@ -89,9 +90,12 @@ const WorkHistory = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [plantFilter, setPlantFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  // 1. Add edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editReport, setEditReport] = useState<Report | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -140,8 +144,6 @@ const WorkHistory = () => {
         report.notes.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesPlant =
       plantFilter === "all" || report.plant.address === plantFilter;
-    const matchesStatus =
-      statusFilter === "all" || getReportStatus(report) === statusFilter;
 
     let matchesDate = true;
     if (dateFilter !== "all") {
@@ -170,31 +172,8 @@ const WorkHistory = () => {
       }
     }
 
-    return matchesSearch && matchesPlant && matchesStatus && matchesDate;
+    return matchesSearch && matchesPlant && matchesDate;
   });
-
-  const getReportStatus = (report: Report) => {
-    // Determine status based on maintenance activities
-    const hasIssues =
-      report.multimedia_backwash === "not_done" ||
-      report.carbon_backwash === "not_done" ||
-      report.membrane_cleaning === "not_done" ||
-      report.arsenic_media_backwash === "not_done";
-
-    if (hasIssues) return "issues";
-    return "complete";
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "complete":
-        return "default";
-      case "issues":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -212,7 +191,6 @@ const WorkHistory = () => {
     thisMonth: reports.filter(
       (r) => new Date(r.created_at).getMonth() === new Date().getMonth()
     ).length,
-    complete: reports.filter((r) => getReportStatus(r) === "complete").length,
     averagePerWeek: Math.round((reports.length / 4) * 10) / 10,
   };
 
@@ -263,21 +241,6 @@ const WorkHistory = () => {
               {stats.thisMonth}
             </div>
             <p className="text-xs text-muted-foreground">Reports submitted</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Complete</CardTitle>
-            <div className="w-3 h-3 bg-success rounded-full"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">
-              {stats.complete}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Successfully completed
-            </p>
           </CardContent>
         </Card>
 
@@ -336,20 +299,6 @@ const WorkHistory = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="complete">Complete</SelectItem>
-                  <SelectItem value="issues">Issues</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="date">Date Range</Label>
               <Select value={dateFilter} onValueChange={setDateFilter}>
                 <SelectTrigger>
@@ -393,7 +342,6 @@ const WorkHistory = () => {
                   <TableHead>Raw TDS</TableHead>
                   <TableHead>Product TDS</TableHead>
                   <TableHead>Flow Rate</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -417,11 +365,6 @@ const WorkHistory = () => {
                     <TableCell>{report.raw_water_tds} ppm</TableCell>
                     <TableCell>{report.product_water_tds} ppm</TableCell>
                     <TableCell>{report.product_water_flow} LPH</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(getReportStatus(report))}>
-                        {getReportStatus(report)}
-                      </Badge>
-                    </TableCell>
                     <TableCell>{formatDate(report.created_at)}</TableCell>
                     <TableCell>
                       <Dialog>
@@ -662,6 +605,395 @@ const WorkHistory = () => {
                               </div>
                             </div>
                           </div>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={report.edit_count >= 2}
+                            onClick={() => {
+                              setEditReport(report);
+                              setEditForm({ ...report });
+                              setEditDialogOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Edit Report</DialogTitle>
+                          </DialogHeader>
+                          {report.edit_count >= 2 ? (
+                            <div className="text-danger">
+                              You can only edit a report twice.
+                            </div>
+                          ) : editForm ? (
+                            <form
+                              onSubmit={async (e) => {
+                                e.preventDefault();
+                                // Call backend PATCH /reports/:id with editForm
+                                // On success, close dialog and refresh reports
+                                // On error, show toast
+                              }}
+                            >
+                              <Label htmlFor="raw_water_tds">
+                                Raw Water TDS
+                              </Label>
+                              <Input
+                                id="raw_water_tds"
+                                type="number"
+                                value={editForm.raw_water_tds}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    raw_water_tds: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="permeate_water_tds">
+                                Permeate Water TDS
+                              </Label>
+                              <Input
+                                id="permeate_water_tds"
+                                type="number"
+                                value={editForm.permeate_water_tds}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    permeate_water_tds: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="raw_water_ph">Raw Water pH</Label>
+                              <Input
+                                id="raw_water_ph"
+                                type="number"
+                                step="0.01"
+                                value={editForm.raw_water_ph}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    raw_water_ph: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="permeate_water_ph">
+                                Permeate Water pH
+                              </Label>
+                              <Input
+                                id="permeate_water_ph"
+                                type="number"
+                                step="0.01"
+                                value={editForm.permeate_water_ph}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    permeate_water_ph: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="product_water_tds">
+                                Product Water TDS
+                              </Label>
+                              <Input
+                                id="product_water_tds"
+                                type="number"
+                                value={editForm.product_water_tds}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    product_water_tds: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="product_water_flow">
+                                Product Water Flow
+                              </Label>
+                              <Input
+                                id="product_water_flow"
+                                type="number"
+                                value={editForm.product_water_flow}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    product_water_flow: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="product_water_ph">
+                                Product Water pH
+                              </Label>
+                              <Input
+                                id="product_water_ph"
+                                type="number"
+                                step="0.01"
+                                value={editForm.product_water_ph}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    product_water_ph: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="reject_water_flow">
+                                Reject Water Flow
+                              </Label>
+                              <Input
+                                id="reject_water_flow"
+                                type="number"
+                                value={editForm.reject_water_flow}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    reject_water_flow: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="membrane_inlet_pressure">
+                                Membrane Inlet Pressure
+                              </Label>
+                              <Input
+                                id="membrane_inlet_pressure"
+                                type="number"
+                                value={editForm.membrane_inlet_pressure}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    membrane_inlet_pressure: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="membrane_outlet_pressure">
+                                Membrane Outlet Pressure
+                              </Label>
+                              <Input
+                                id="membrane_outlet_pressure"
+                                type="number"
+                                value={editForm.membrane_outlet_pressure}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    membrane_outlet_pressure: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="raw_water_inlet_pressure">
+                                Raw Water Inlet Pressure
+                              </Label>
+                              <Input
+                                id="raw_water_inlet_pressure"
+                                type="number"
+                                value={editForm.raw_water_inlet_pressure}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    raw_water_inlet_pressure: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="volts_amperes">
+                                Volts/Amperes
+                              </Label>
+                              <Input
+                                id="volts_amperes"
+                                type="number"
+                                value={editForm.volts_amperes}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    volts_amperes: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="multimedia_backwash">
+                                Multimedia Backwash
+                              </Label>
+                              <Select
+                                value={editForm.multimedia_backwash}
+                                onValueChange={(value) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    multimedia_backwash: value,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="done">Done</SelectItem>
+                                  <SelectItem value="not_done">
+                                    Not Done
+                                  </SelectItem>
+                                  <SelectItem value="not_required">
+                                    Not Required
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Label htmlFor="carbon_backwash">
+                                Carbon Backwash
+                              </Label>
+                              <Select
+                                value={editForm.carbon_backwash}
+                                onValueChange={(value) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    carbon_backwash: value,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="done">Done</SelectItem>
+                                  <SelectItem value="not_done">
+                                    Not Done
+                                  </SelectItem>
+                                  <SelectItem value="not_required">
+                                    Not Required
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Label htmlFor="membrane_cleaning">
+                                Membrane Cleaning
+                              </Label>
+                              <Select
+                                value={editForm.membrane_cleaning}
+                                onValueChange={(value) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    membrane_cleaning: value,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="done">Done</SelectItem>
+                                  <SelectItem value="not_done">
+                                    Not Done
+                                  </SelectItem>
+                                  <SelectItem value="not_required">
+                                    Not Required
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Label htmlFor="arsenic_media_backwash">
+                                Arsenic Media Backwash
+                              </Label>
+                              <Select
+                                value={editForm.arsenic_media_backwash}
+                                onValueChange={(value) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    arsenic_media_backwash: value,
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="done">Done</SelectItem>
+                                  <SelectItem value="not_done">
+                                    Not Done
+                                  </SelectItem>
+                                  <SelectItem value="not_required">
+                                    Not Required
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Label htmlFor="cip">CIP</Label>
+                              <Select
+                                value={editForm.cip ? "yes" : "no"}
+                                onValueChange={(value) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    cip: value === "yes",
+                                  })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="yes">Yes</SelectItem>
+                                  <SelectItem value="no">No</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Label htmlFor="chemical_refill_litres">
+                                Chemical Refill (Litres)
+                              </Label>
+                              <Input
+                                id="chemical_refill_litres"
+                                type="number"
+                                value={editForm.chemical_refill_litres}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    chemical_refill_litres: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="cartridge_filter_replacement">
+                                Cartridge Filter Replacement
+                              </Label>
+                              <Input
+                                id="cartridge_filter_replacement"
+                                type="number"
+                                value={editForm.cartridge_filter_replacement}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    cartridge_filter_replacement:
+                                      e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="membrane_replacement">
+                                Membrane Replacement
+                              </Label>
+                              <Input
+                                id="membrane_replacement"
+                                type="number"
+                                value={editForm.membrane_replacement}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    membrane_replacement: e.target.value,
+                                  })
+                                }
+                              />
+                              <Label htmlFor="notes">Notes</Label>
+                              <Input
+                                id="notes"
+                                value={editForm.notes || ""}
+                                onChange={(e) =>
+                                  setEditForm({
+                                    ...editForm,
+                                    notes: e.target.value,
+                                  })
+                                }
+                              />
+                              <div className="flex justify-end gap-2 mt-4">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setEditDialogOpen(false)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button type="submit">Save</Button>
+                              </div>
+                            </form>
+                          ) : null}
                         </DialogContent>
                       </Dialog>
                     </TableCell>

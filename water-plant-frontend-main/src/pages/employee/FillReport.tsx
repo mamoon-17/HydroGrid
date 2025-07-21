@@ -78,6 +78,7 @@ const FillReport = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 1. Set default values for enum fields in formData
   const [formData, setFormData] = useState<ReportFormData>({
     plantId: "",
     raw_water_tds: "",
@@ -92,10 +93,10 @@ const FillReport = () => {
     membrane_outlet_pressure: "",
     raw_water_inlet_pressure: "",
     volts_amperes: "",
-    multimedia_backwash: "",
-    carbon_backwash: "",
-    membrane_cleaning: "",
-    arsenic_media_backwash: "",
+    multimedia_backwash: "done", // default to valid value
+    carbon_backwash: "done",
+    membrane_cleaning: "done",
+    arsenic_media_backwash: "done",
     cip: false,
     chemical_refill_litres: "",
     cartridge_filter_replacement: "",
@@ -104,9 +105,33 @@ const FillReport = () => {
     media: [],
   });
 
+  // 1. Save/load draft helpers
+  const DRAFT_KEY = "plant_report_draft";
+
+  function saveDraftToStorage(draft: ReportFormData) {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+
+  function loadDraftFromStorage(): ReportFormData | null {
+    const data = localStorage.getItem(DRAFT_KEY);
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+
+  function clearDraftFromStorage() {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+
+  // 2. On mount, load draft if present
   useEffect(() => {
     if (user) {
       fetchAssignedPlants();
+      const draft = loadDraftFromStorage();
+      if (draft) setFormData(draft);
     }
   }, [user]);
 
@@ -128,7 +153,6 @@ const FillReport = () => {
       const plants = await response.json();
       setAssignedPlants(plants);
     } catch (err) {
-      console.error("Failed to load assigned plants", err);
       toast.error(
         err instanceof Error ? err.message : "Failed to load assigned plants"
       );
@@ -170,6 +194,7 @@ const FillReport = () => {
     });
   };
 
+  // 2. Update validateForm to allow decimals for all number fields
   const validateForm = () => {
     const requiredFields = [
       "plantId",
@@ -193,46 +218,69 @@ const FillReport = () => {
       "cartridge_filter_replacement",
       "membrane_replacement",
     ];
-
     for (const field of requiredFields) {
-      if (
-        formData[field as keyof ReportFormData] === "" ||
-        formData[field as keyof ReportFormData] === undefined
-      ) {
+      const value = formData[field as keyof ReportFormData];
+      if (value === "" || value === undefined || value === null) {
+        toast.error(`Field '${field}' is required.`);
         return false;
       }
     }
-
-    // Validate ranges
-    const cartridge = parseInt(formData.cartridge_filter_replacement);
-    const membrane = parseInt(formData.membrane_replacement);
-    const chemical = parseFloat(formData.chemical_refill_litres);
-
-    if (cartridge < 0 || cartridge > 2) {
-      toast.error("Cartridge filter replacement must be between 0-2");
+    // Enum fields must be valid
+    const validEnums = ["done", "not_done", "not_required"];
+    if (!validEnums.includes(formData.multimedia_backwash)) {
+      toast.error("Invalid value for multimedia_backwash");
       return false;
     }
-
-    if (membrane < 0 || membrane > 8) {
-      toast.error("Membrane replacement must be between 0-8");
+    if (!validEnums.includes(formData.carbon_backwash)) {
+      toast.error("Invalid value for carbon_backwash");
       return false;
     }
-
-    if (chemical < 0) {
-      toast.error("Chemical refill must be a positive number");
+    if (!validEnums.includes(formData.membrane_cleaning)) {
+      toast.error("Invalid value for membrane_cleaning");
       return false;
     }
-
+    if (!validEnums.includes(formData.arsenic_media_backwash)) {
+      toast.error("Invalid value for arsenic_media_backwash");
+      return false;
+    }
+    // All number fields must be valid (allow decimals)
+    const numberFields = [
+      "raw_water_tds",
+      "permeate_water_tds",
+      "raw_water_ph",
+      "permeate_water_ph",
+      "product_water_tds",
+      "product_water_flow",
+      "product_water_ph",
+      "reject_water_flow",
+      "membrane_inlet_pressure",
+      "membrane_outlet_pressure",
+      "raw_water_inlet_pressure",
+      "volts_amperes",
+      "chemical_refill_litres",
+      "cartridge_filter_replacement",
+      "membrane_replacement",
+    ];
+    for (const field of numberFields) {
+      const value = formData[field as keyof ReportFormData];
+      if (
+        isNaN(Number(value)) ||
+        !Number.isFinite(Number(value)) ||
+        Number(value) < 0
+      ) {
+        toast.error(`Field '${field}' must be a nonnegative number.`);
+        return false;
+      }
+    }
     return true;
   };
 
+  // 3. Update handleSaveDraft to save to localStorage
   const handleSaveDraft = async () => {
     setIsSaving(true);
     try {
-      // For now, we'll just show a success message
-      // In a real implementation, you might save to a drafts table
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Report saved as draft");
+      saveDraftToStorage(formData);
+      toast.success("Draft saved locally");
     } catch (err) {
       toast.error("Failed to save draft");
     } finally {
@@ -240,6 +288,7 @@ const FillReport = () => {
     }
   };
 
+  // 4. Add clear draft button
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -253,7 +302,8 @@ const FillReport = () => {
     try {
       // Prepare the report data for backend
       const reportData = {
-        plant_id: formData.plantId,
+        plantId: formData.plantId,
+        userId: user?.id,
         raw_water_tds: parseFloat(formData.raw_water_tds),
         permeate_water_tds: parseFloat(formData.permeate_water_tds),
         raw_water_ph: parseFloat(formData.raw_water_ph),
@@ -272,10 +322,10 @@ const FillReport = () => {
         arsenic_media_backwash: formData.arsenic_media_backwash,
         cip: formData.cip,
         chemical_refill_litres: parseFloat(formData.chemical_refill_litres),
-        cartridge_filter_replacement: parseInt(
+        cartridge_filter_replacement: parseFloat(
           formData.cartridge_filter_replacement
         ),
-        membrane_replacement: parseInt(formData.membrane_replacement),
+        membrane_replacement: parseFloat(formData.membrane_replacement),
         notes: formData.notes || "",
       };
 
@@ -290,6 +340,7 @@ const FillReport = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("Report submission error:", errorData);
         throw new Error(
           errorData.message || `Failed to submit report: ${response.status}`
         );
@@ -312,10 +363,10 @@ const FillReport = () => {
         membrane_outlet_pressure: "",
         raw_water_inlet_pressure: "",
         volts_amperes: "",
-        multimedia_backwash: "",
-        carbon_backwash: "",
-        membrane_cleaning: "",
-        arsenic_media_backwash: "",
+        multimedia_backwash: "done",
+        carbon_backwash: "done",
+        membrane_cleaning: "done",
+        arsenic_media_backwash: "done",
         cip: false,
         chemical_refill_litres: "",
         cartridge_filter_replacement: "",
@@ -323,6 +374,7 @@ const FillReport = () => {
         notes: "",
         media: [],
       });
+      clearDraftFromStorage();
     } catch (err) {
       console.error("Failed to submit report", err);
       toast.error(
@@ -345,7 +397,9 @@ const FillReport = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-visible">
+      {" "}
+      {/* No h-screen or overflow classes here */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
@@ -356,7 +410,6 @@ const FillReport = () => {
           </p>
         </div>
       </div>
-
       {assignedPlants.length === 0 ? (
         <Card>
           <CardContent className="text-center py-8">
@@ -854,7 +907,18 @@ const FillReport = () => {
               <Save className="h-4 w-4" />
               {isSaving ? "Saving..." : "Save Draft"}
             </Button>
-
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                clearDraftFromStorage();
+                toast.success("Draft cleared");
+              }}
+              disabled={isSaving || isSubmitting}
+              className="flex items-center gap-2"
+            >
+              Clear Draft
+            </Button>
             <Button
               type="submit"
               disabled={isSaving || isSubmitting}

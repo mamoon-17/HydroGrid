@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent page (html/body) from scrolling, only main content should scroll */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 /* Professional Water Treatment Plant Management System Design */
 
 @layer base {
@@ -51,14 +58,28 @@
     --ring: 210 85% 35%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(210, 85%, 35%), hsl(210, 85%, 45%));
-    --gradient-secondary: linear-gradient(135deg, hsl(210, 40%, 92%), hsl(210, 40%, 96%));
-    --gradient-accent: linear-gradient(135deg, hsl(180, 84%, 32%), hsl(180, 84%, 42%));
-    
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(210, 85%, 35%),
+      hsl(210, 85%, 45%)
+    );
+    --gradient-secondary: linear-gradient(
+      135deg,
+      hsl(210, 40%, 92%),
+      hsl(210, 40%, 96%)
+    );
+    --gradient-accent: linear-gradient(
+      135deg,
+      hsl(180, 84%, 32%),
+      hsl(180, 84%, 42%)
+    );
+
     /* Shadows */
-    --shadow-card: 0 4px 6px -1px hsl(210 20% 15% / 0.1), 0 2px 4px -1px hsl(210 20% 15% / 0.06);
-    --shadow-elevated: 0 10px 15px -3px hsl(210 20% 15% / 0.1), 0 4px 6px -2px hsl(210 20% 15% / 0.05);
-    
+    --shadow-card: 0 4px 6px -1px hsl(210 20% 15% / 0.1),
+      0 2px 4px -1px hsl(210 20% 15% / 0.06);
+    --shadow-elevated: 0 10px 15px -3px hsl(210 20% 15% / 0.1),
+      0 4px 6px -2px hsl(210 20% 15% / 0.05);
+
     /* Animation */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 

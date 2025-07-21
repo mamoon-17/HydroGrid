@@ -9,6 +9,7 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
+  Req,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -51,10 +52,11 @@ export class ReportsController {
     }),
   )
   createReport(
-    @UploadedFiles() files: Express.Multer.File[],
     @Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
-    const filePaths = files.map(
+    // files is optional; if not present, use empty array
+    const filePaths = (files ?? []).map(
       (f) => `https://dummy-s3.com/uploads/${f.filename}`,
     );
     return this.reportsService.createReport(body, filePaths);
@@ -68,7 +70,7 @@ export class ReportsController {
 
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
+  @Roles(RoleType.ADMIN, RoleType.USER)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: diskStorage({
@@ -84,18 +86,19 @@ export class ReportsController {
     @Param('id') id: string,
     @UploadedFiles() files: Express.Multer.File[],
     @Body(new ZodValidationPipe(UpdateReportSchema))
-    body: UpdateReportDto & {
-      mediaToRemove?: string[];
-    },
+    body: UpdateReportDto & { mediaToRemove?: string[] },
+    @Req() req,
   ) {
     const filePaths = files.map(
       (f) => `https://dummy-s3.com/uploads/${f.filename}`,
     );
+    const userRole = req.user?.role;
     return this.reportsService.updateReport(
       id,
       body,
       filePaths,
       body.mediaToRemove || [],
+      userRole,
     );
   }
 
@@ -114,8 +117,7 @@ export class ReportsController {
   }
 
   @Get('user/:userId')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
+  @UseGuards(AuthGuard)
   getReportsByUser(@Param('userId') userId: string) {
     return this.reportsService.getReportsByUserId(userId);
   }

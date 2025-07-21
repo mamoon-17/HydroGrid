@@ -33,41 +33,41 @@ export class Report {
   submitted_by: Users;
 
   // Parameters
-  @Column('int')
+  @Column('float')
   raw_water_tds: number;
 
-  @Column('int')
+  @Column('float')
   permeate_water_tds: number;
 
-  @Column('int')
+  @Column('float')
   raw_water_ph: number;
 
-  @Column('int')
+  @Column('float')
   permeate_water_ph: number;
 
-  @Column('int')
+  @Column('float')
   product_water_tds: number;
 
-  @Column('int')
+  @Column('float')
   product_water_flow: number;
 
-  @Column('int')
+  @Column('float')
   product_water_ph: number;
 
-  @Column('int')
+  @Column('float')
   reject_water_flow: number;
 
   // Pressure & power
-  @Column('int')
+  @Column('float')
   membrane_inlet_pressure: number;
 
-  @Column('int')
+  @Column('float')
   membrane_outlet_pressure: number;
 
-  @Column('int')
+  @Column('float')
   raw_water_inlet_pressure: number;
 
-  @Column('int')
+  @Column('float')
   volts_amperes: number;
 
   // Maintenance / Backwash
@@ -86,16 +86,19 @@ export class Report {
   @Column({ type: 'boolean' })
   cip: boolean;
 
-  @Column('int')
+  @Column('float')
   chemical_refill_litres: number;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'float' })
   @Check(`"cartridge_filter_replacement" BETWEEN 0 AND 2`)
   cartridge_filter_replacement: number;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'float' })
   @Check(`"membrane_replacement" BETWEEN 0 AND 8`)
   membrane_replacement: number;
+
+  @Column({ type: 'int', default: 0 })
+  edit_count: number;
 
   @OneToMany(() => ReportMedia, (media) => media.report, { cascade: true })
   media: ReportMedia[];

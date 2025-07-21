@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report } from './reports.entity';
@@ -64,9 +68,18 @@ export class ReportsService {
     updates: UpdateReportDto,
     filePaths: string[] = [],
     mediaToRemove: string[] = [],
+    userRole?: string,
   ): Promise<Report> {
     const report = await this.reportsRepo.findOne({ where: { id } });
     if (!report) throw new NotFoundException('Report not found');
+
+    // Only enforce edit limit for non-admins
+    if (userRole !== 'admin') {
+      if ((report.edit_count ?? 0) >= 2) {
+        throw new ForbiddenException('This report can only be edited twice.');
+      }
+      report.edit_count = (report.edit_count ?? 0) + 1;
+    }
 
     Object.assign(report, updates);
     await this.reportsRepo.save(report);

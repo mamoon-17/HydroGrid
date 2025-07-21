@@ -90,10 +90,6 @@ const EmployeeDashboard = () => {
 
       const assignedPlants = await plantsResponse.json();
 
-      // Debug logging
-      console.log("Assigned plants:", assignedPlants);
-      console.log("Current user ID:", user?.id);
-
       setAssignedPlants(assignedPlants);
 
       // Fetch reports submitted by current user
@@ -150,42 +146,6 @@ const EmployeeDashboard = () => {
     );
   };
 
-  // Helper function to determine plant status
-  const getPlantStatus = (plant: Plant) => {
-    const daysAgo = getDaysAgo(plant);
-
-    if (daysAgo <= 7) return "maintained";
-    if (daysAgo <= 15) return "pending";
-    return "warning";
-  };
-
-  // Calculate statistics
-  const stats = {
-    totalAssigned: assignedPlants.length,
-    reportsThisMonth: reports.filter((r) => {
-      const reportDate = new Date(r.created_at);
-      const now = new Date();
-      return (
-        reportDate.getMonth() === now.getMonth() &&
-        reportDate.getFullYear() === now.getFullYear()
-      );
-    }).length,
-    overdueReports: assignedPlants.filter((p) => getDaysAgo(p) > 15).length,
-    averageReportTime:
-      assignedPlants.length > 0
-        ? Math.round((reports.length / assignedPlants.length) * 7)
-        : 0,
-  };
-
-  // Get recent activity from reports
-  const recentActivity = reports.slice(0, 3).map((report, index) => ({
-    id: report.id,
-    action: "Submitted quality report",
-    plant: report.plant.address,
-    timestamp: formatReportDate(report.created_at),
-    type: "report" as const,
-  }));
-
   // Helper function to format report date
   const formatReportDate = (dateString: string) => {
     const reportDate = new Date(dateString);
@@ -198,6 +158,15 @@ const EmployeeDashboard = () => {
     if (daysDiff === 1) return "1 day ago";
     return `${daysDiff} days ago`;
   };
+
+  // Get recent activity from reports
+  const recentActivity = reports.slice(0, 3).map((report, index) => ({
+    id: report.id,
+    action: "Submitted quality report",
+    plant: report.plant.address,
+    timestamp: formatReportDate(report.created_at),
+    type: "report" as const,
+  }));
 
   if (loading) {
     return (
@@ -234,7 +203,7 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {stats.totalAssigned}
+              {assignedPlants.length}
             </div>
             <p className="text-xs text-muted-foreground">
               Under your maintenance
@@ -251,26 +220,9 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {stats.reportsThisMonth}
+              {reports.length}
             </div>
             <p className="text-xs text-muted-foreground">Submitted reports</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Overdue Reports
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-danger" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-danger">
-              {stats.overdueReports}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Need immediate attention
-            </p>
           </CardContent>
         </Card>
 
@@ -283,7 +235,10 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-accent">
-              {stats.averageReportTime}d
+              {assignedPlants.length > 0
+                ? Math.round((reports.length / assignedPlants.length) * 7)
+                : 0}
+              d
             </div>
             <p className="text-xs text-muted-foreground">Between reports</p>
           </CardContent>
@@ -383,13 +338,9 @@ const EmployeeDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {assignedPlants.map((plant) => {
                 const daysAgo = getDaysAgo(plant);
-                const status = getPlantStatus(plant);
 
                 return (
-                  <Card
-                    key={plant.id}
-                    className={`${status === "warning" ? "border-danger" : ""}`}
-                  >
+                  <Card key={plant.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
@@ -398,7 +349,6 @@ const EmployeeDashboard = () => {
                             {plant.address}
                           </CardTitle>
                         </div>
-                        <StatusBadge status={status} />
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
@@ -434,15 +384,6 @@ const EmployeeDashboard = () => {
                           </span>
                         </div>
                       </div>
-
-                      {status === "warning" && (
-                        <div className="mt-3 p-2 bg-danger/10 border border-danger/20 rounded">
-                          <p className="text-xs text-danger">
-                            <AlertTriangle className="h-3 w-3 inline mr-1" />
-                            Report overdue - immediate attention required
-                          </p>
-                        </div>
-                      )}
 
                       <div className="mt-3">
                         <Link to="/user/fill-report">
