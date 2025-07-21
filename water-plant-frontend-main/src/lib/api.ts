@@ -2,7 +2,8 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export async function apiFetch<T = any>(
   input: string,
-  init?: RequestInit
+  init?: RequestInit,
+  retry = true // allow one retry after refresh
 ): Promise<T> {
   const res = await fetch(`${BASE_URL}${input}`, {
     ...init,
@@ -12,6 +13,23 @@ export async function apiFetch<T = any>(
       ...(init?.headers || {}),
     },
   });
+
+  if (res.status === 401 || res.status === 403) {
+    // Try to refresh token if not already retried
+    if (retry && input !== "/auth/refresh" && input !== "/auth/login") {
+      try {
+        await fetch(`${BASE_URL}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        // Retry the original request once
+        return apiFetch(input, init, false);
+      } catch {
+        // Refresh failed, fall through to error
+      }
+    }
+  }
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
