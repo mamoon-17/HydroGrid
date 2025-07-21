@@ -10,7 +10,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageEmployees from "./pages/admin/ManageEmployees";
 import ManagePlants from "./pages/admin/ManagePlants";
-import PlantDetails from "./pages/admin/PlantDetails";
 import QualityReports from "./pages/admin/QualityReports";
 import Analytics from "./pages/admin/Analytics";
 
@@ -48,7 +47,6 @@ const App = () => (
                 <Route index element={<AdminDashboard />} />
                 <Route path="employees" element={<ManageEmployees />} />
                 <Route path="plants" element={<ManagePlants />} />
-                <Route path="plant-details" element={<PlantDetails />} />
                 <Route path="reports" element={<QualityReports />} />
                 <Route path="analytics" element={<Analytics />} />
               </Route>

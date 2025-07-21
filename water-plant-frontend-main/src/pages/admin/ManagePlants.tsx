@@ -8,7 +8,6 @@ import {
 } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
 import {
   Select,
   SelectContent,
@@ -16,14 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -33,54 +24,100 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
-import { Plus, Edit, Trash2, Database, MapPin, User } from "lucide-react";
+import { StatusBadge } from "../../components/StatusBadge";
+import {
+  Database,
+  Filter,
+  FileText,
+  MapPin,
+  User,
+  Calendar,
+  Plus,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import { Label } from "../../components/ui/label";
 
-interface Plant {
+// 1. Add Employee type
+interface Employee {
+  id: string;
+  name: string;
+  username: string;
+  phone: string;
+  country: string;
+  email?: string | null;
+  role: "admin" | "user";
+  assignedPlants?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface PlantDetail {
   id: string;
   address: string;
-  lat?: number | null;
-  lng?: number | null;
-  point?: string | null;
-  tehsil: string;
   type: "uf" | "ro";
+  tehsil: string;
   capacity: number;
-  users?: Array<{
-    id: string;
-    name: string;
-    username: string;
-  }>;
-  created_at: string;
-  updated_at: string;
+  lat?: number;
+  lng?: number;
+  employee?: Employee; // single employee
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CreatePlantData {
+  id?: string;
   address: string;
-  lat?: number;
-  lng?: number;
+  lat?: number | null;
+  lng?: number | null;
   tehsil: string;
   type: "uf" | "ro";
   capacity: number;
-  userIds?: string[];
+  employeeId?: string | null;
+}
+
+function getInitialFormData(): CreatePlantData {
+  return {
+    address: "",
+    type: "ro",
+    tehsil: "",
+    capacity: 1000,
+    lat: undefined,
+    lng: undefined,
+    employeeId: undefined,
+  };
 }
 
 const ManagePlants = () => {
-  const [plants, setPlants] = useState<Plant[]>([]);
+  const [plants, setPlants] = useState<PlantDetail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
-  const [formData, setFormData] = useState<CreatePlantData>({
-    address: "",
-    lat: undefined,
-    lng: undefined,
-    tehsil: "",
-    type: "ro",
-    capacity: 1000,
-    userIds: [],
-  });
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<CreatePlantData | null>(
+    null
+  );
+  const [addFormData, setAddFormData] = useState<CreatePlantData>(
+    getInitialFormData()
+  );
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tehsilFilter, setTehsilFilter] = useState<string>("all");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchPlants();
+    fetchEmployees();
   }, []);
 
   const fetchPlants = async () => {
@@ -101,7 +138,12 @@ const ManagePlants = () => {
       }
 
       const data = await res.json();
-      setPlants(data);
+      setPlants(
+        data.map((plant: any) => ({
+          ...plant,
+          employee: plant.user || undefined, // map user to employee for UI
+        }))
+      );
     } catch (err) {
       console.error("Failed to load plants", err);
       toast.error(err instanceof Error ? err.message : "Failed to load plants");
@@ -110,31 +152,46 @@ const ManagePlants = () => {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/users", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch employees");
+      const data = await res.json();
+      setEmployees(data);
+    } catch (err) {
+      toast.error("Failed to load employees");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       let response;
-      const payload: Partial<CreatePlantData> = {
-        address: formData.address,
-        tehsil: formData.tehsil,
-        type: formData.type,
-        capacity: formData.capacity,
+      const payload: any = {
+        address: addFormData.address,
+        type: addFormData.type,
+        tehsil: addFormData.tehsil,
+        capacity: addFormData.capacity,
       };
 
-      if (formData.lat !== undefined) {
-        payload.lat = formData.lat;
+      if (addFormData.lat !== undefined) {
+        payload.lat = addFormData.lat;
       }
-      if (formData.lng !== undefined) {
-        payload.lng = formData.lng;
+      if (addFormData.lng !== undefined) {
+        payload.lng = addFormData.lng;
       }
-      if (formData.userIds && formData.userIds.length > 0) {
-        payload.userIds = formData.userIds;
+      if (addFormData.employeeId === "none") {
+        payload.userId = null;
+      } else if (addFormData.employeeId) {
+        payload.userId = addFormData.employeeId;
       }
 
-      if (editingPlant) {
+      if (addFormData.id) {
         response = await fetch(
-          `http://localhost:3000/plants/${editingPlant.id}`,
+          `http://localhost:3000/plants/${addFormData.id}`,
           {
             method: "PATCH",
             headers: {
@@ -161,9 +218,11 @@ const ManagePlants = () => {
       }
 
       toast.success(
-        editingPlant ? "Plant updated successfully" : "Plant added successfully"
+        addFormData.id
+          ? "Plant updated successfully"
+          : "Plant added successfully"
       );
-      setIsDialogOpen(false);
+      setIsAddDialogOpen(false);
       resetForm();
       fetchPlants();
     } catch (error) {
@@ -174,18 +233,9 @@ const ManagePlants = () => {
     }
   };
 
-  const handleEdit = (plant: Plant) => {
-    setEditingPlant(plant);
-    setFormData({
-      address: plant.address,
-      lat: plant.lat || undefined,
-      lng: plant.lng || undefined,
-      tehsil: plant.tehsil,
-      type: plant.type,
-      capacity: plant.capacity,
-      userIds: plant.users?.map((user) => user.id) || [],
-    });
-    setIsDialogOpen(true);
+  const handleEdit = (plant: PlantDetail) => {
+    setEditFormData({ ...plant, employeeId: plant.employee?.id ?? null });
+    setIsEditDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -211,24 +261,78 @@ const ManagePlants = () => {
   };
 
   const resetForm = () => {
-    setFormData({
+    setAddFormData({
       address: "",
+      type: "ro",
+      tehsil: "",
+      capacity: 1000,
       lat: undefined,
       lng: undefined,
-      tehsil: "",
-      type: "ro",
-      capacity: 1000,
-      userIds: [],
+      employeeId: undefined,
     });
-    setEditingPlant(null);
+    setEditFormData(null);
   };
 
-  // Helper function to get assigned employees as string
-  const getAssignedEmployees = (plant: Plant) => {
-    if (!plant.users || plant.users.length === 0) {
-      return "No employees assigned";
+  // Helper function to get assigned employee as string
+  const getAssignedEmployee = (plant: PlantDetail) => {
+    if (!plant.employee) {
+      return "No employee assigned";
     }
-    return plant.users.map((user) => user.name).join(", ");
+    return plant.employee.name;
+  };
+
+  // Helper function to determine status based on last activity
+  const getPlantStatus = (plant: PlantDetail) => {
+    if (!plant.updated_at) return "pending";
+
+    const lastUpdate = new Date(plant.updated_at);
+    const now = new Date();
+    const daysDiff =
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24);
+
+    if (daysDiff <= 7) return "maintained";
+    if (daysDiff <= 14) return "pending";
+    return "warning";
+  };
+
+  // Helper function to get last report time
+  const getLastReport = (plant: PlantDetail) => {
+    if (!plant.updated_at) return "Never";
+
+    const lastUpdate = new Date(plant.updated_at);
+    const now = new Date();
+    const daysDiff = Math.floor(
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+    );
+
+    if (daysDiff === 0) return "Today";
+    if (daysDiff === 1) return "1 day ago";
+    return `${daysDiff} days ago`;
+  };
+
+  const uniqueTehsils = [...new Set(plants.map((plant) => plant.tehsil))];
+  const allEmployees = employees;
+
+  const filteredPlants = plants.filter((plant) => {
+    const search = searchTerm.toLowerCase();
+    const matchesSearch =
+      plant.address.toLowerCase().includes(search) ||
+      (plant.employee?.name?.toLowerCase().includes(search) ?? false) ||
+      (plant.employee?.username?.toLowerCase().includes(search) ?? false);
+    const matchesStatus =
+      statusFilter === "all" || getPlantStatus(plant) === statusFilter;
+    const matchesTehsil =
+      tehsilFilter === "all" || plant.tehsil === tehsilFilter;
+    const matchesEmployee =
+      employeeFilter === "all" || plant.employee?.id === employeeFilter;
+
+    return matchesSearch && matchesStatus && matchesTehsil && matchesEmployee;
+  });
+
+  const statusCounts = {
+    maintained: plants.filter((p) => getPlantStatus(p) === "maintained").length,
+    pending: plants.filter((p) => getPlantStatus(p) === "pending").length,
+    warning: plants.filter((p) => getPlantStatus(p) === "warning").length,
   };
 
   if (loading) {
@@ -239,6 +343,83 @@ const ManagePlants = () => {
     );
   }
 
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      let response;
+      const payload: any = {
+        address: addFormData.address,
+        type: addFormData.type,
+        tehsil: addFormData.tehsil,
+        capacity: addFormData.capacity,
+      };
+      if (addFormData.lat !== undefined) payload.lat = addFormData.lat;
+      if (addFormData.lng !== undefined) payload.lng = addFormData.lng;
+      if (addFormData.employeeId === "none") payload.userId = null;
+      else if (addFormData.employeeId) payload.userId = addFormData.employeeId;
+      response = await fetch("http://localhost:3000/plants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Something went wrong");
+      }
+      toast.success("Plant added successfully");
+      setIsAddDialogOpen(false);
+      setAddFormData(getInitialFormData());
+      fetchPlants();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData || !editFormData.id) return;
+    try {
+      let response;
+      const payload: any = {
+        address: editFormData.address,
+        type: editFormData.type,
+        tehsil: editFormData.tehsil,
+        capacity: editFormData.capacity,
+      };
+      if (editFormData.lat !== undefined) payload.lat = editFormData.lat;
+      if (editFormData.lng !== undefined) payload.lng = editFormData.lng;
+      if (editFormData.employeeId === "none") payload.userId = null;
+      else if (editFormData.employeeId)
+        payload.userId = editFormData.employeeId;
+      response = await fetch(
+        `http://localhost:3000/plants/${editFormData.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Something went wrong");
+      }
+      toast.success("Plant updated successfully");
+      setIsEditDialogOpen(false);
+      setEditFormData(null);
+      fetchPlants();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -248,186 +429,163 @@ const ManagePlants = () => {
             Configure plant locations and assignments
           </p>
         </div>
-
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Plant
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingPlant ? "Edit Plant" : "Add New Plant"}
-              </DialogTitle>
-              <DialogDescription>
-                {editingPlant
-                  ? "Update plant information below."
-                  : "Fill in the details to register a new plant."}
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      address: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter address"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lat">Latitude</Label>
-                <Input
-                  id="lat"
-                  type="number"
-                  step="any"
-                  value={formData.lat ?? ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      lat: e.target.value
-                        ? parseFloat(e.target.value)
-                        : undefined,
-                    }))
-                  }
-                  placeholder="Enter latitude (optional)"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lng">Longitude</Label>
-                <Input
-                  id="lng"
-                  type="number"
-                  step="any"
-                  value={formData.lng ?? ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      lng: e.target.value
-                        ? parseFloat(e.target.value)
-                        : undefined,
-                    }))
-                  }
-                  placeholder="Enter longitude (optional)"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tehsil">Tehsil</Label>
-                <Input
-                  id="tehsil"
-                  value={formData.tehsil}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, tehsil: e.target.value }))
-                  }
-                  placeholder="Enter tehsil"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="type">Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: "uf" | "ro") =>
-                    setFormData((prev) => ({ ...prev, type: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ro">RO</SelectItem>
-                    <SelectItem value="uf">UF</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity (LPH)</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      capacity: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  placeholder="Enter capacity"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingPlant ? "Update" : "Create"} Plant
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          className="flex items-center gap-2"
+          variant="default"
+          size="sm"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Add Plant
+        </Button>
       </div>
 
+      {/* Status Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Plants</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{plants.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Maintained</CardTitle>
+            <div className="w-3 h-3 bg-success rounded-full"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success">
+              {statusCounts.maintained}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <div className="w-3 h-3 bg-warning rounded-full"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-warning">
+              {statusCounts.pending}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Warning</CardTitle>
+            <div className="w-3 h-3 bg-danger rounded-full"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-danger">
+              {statusCounts.warning}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Plant List
+            <Filter className="h-5 w-5" />
+            Filters
           </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Search</label>
+              <Input
+                placeholder="Search address or employee..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="maintained">Maintained</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tehsil</label>
+              <Select value={tehsilFilter} onValueChange={setTehsilFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tehsils</SelectItem>
+                  {uniqueTehsils.map((tehsil) => (
+                    <SelectItem key={tehsil} value={tehsil}>
+                      {tehsil}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Employee</label>
+              <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {allEmployees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Plants Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Plant Status Overview</CardTitle>
           <CardDescription>
-            Total: {plants.length} plants registered
+            Showing {filteredPlants.length} of {plants.length} plants
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Location</TableHead>
-                <TableHead>GPS Coordinates</TableHead>
-                <TableHead>Assigned Employees</TableHead>
-                <TableHead>Tehsil</TableHead>
+                <TableHead>Address</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Assigned Employee</TableHead>
+                <TableHead>Tehsil</TableHead>
+                <TableHead>Current Status</TableHead>
+                <TableHead>Last Report</TableHead>
+                <TableHead>Capacity (L)</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {plants.map((plant) => (
+              {filteredPlants.map((plant) => (
                 <TableRow key={plant.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {plant.address}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {plant.lat && plant.lng
-                      ? `${plant.lat}, ${plant.lng}`
-                      : "Not set"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      {getAssignedEmployees(plant)}
-                    </div>
-                  </TableCell>
-                  <TableCell>{plant.tehsil}</TableCell>
+                  <TableCell className="font-medium">{plant.address}</TableCell>
                   <TableCell>
                     <Badge
                       variant={plant.type === "ro" ? "default" : "secondary"}
@@ -435,10 +593,13 @@ const ManagePlants = () => {
                       {plant.type.toUpperCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell>{plant.capacity.toLocaleString()} LPH</TableCell>
+                  <TableCell>{getAssignedEmployee(plant)}</TableCell>
+                  <TableCell>{plant.tehsil}</TableCell>
                   <TableCell>
-                    <Badge variant="default">Active</Badge>
+                    <StatusBadge status={getPlantStatus(plant)} />
                   </TableCell>
+                  <TableCell>{getLastReport(plant)}</TableCell>
+                  <TableCell>{plant.capacity.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
@@ -452,7 +613,6 @@ const ManagePlants = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDelete(plant.id)}
-                        className="text-danger hover:text-danger"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -464,6 +624,296 @@ const ManagePlants = () => {
           </Table>
         </CardContent>
       </Card>
+      {/* Add Plant Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Plant</DialogTitle>
+            <DialogDescription>Add a new plant to the system</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={addFormData.address}
+                onChange={(e) =>
+                  setAddFormData({ ...addFormData, address: e.target.value })
+                }
+                placeholder="Plant address"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Type</Label>
+              <Select
+                value={addFormData.type}
+                onValueChange={(value: "uf" | "ro") =>
+                  setAddFormData({ ...addFormData, type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ro">RO</SelectItem>
+                  <SelectItem value="uf">UF</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tehsil">Tehsil</Label>
+              <Input
+                id="tehsil"
+                value={addFormData.tehsil}
+                onChange={(e) =>
+                  setAddFormData({ ...addFormData, tehsil: e.target.value })
+                }
+                placeholder="Tehsil name"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="capacity">Capacity (Liters)</Label>
+              <Input
+                id="capacity"
+                type="number"
+                value={addFormData.capacity}
+                onChange={(e) =>
+                  setAddFormData({
+                    ...addFormData,
+                    capacity: parseInt(e.target.value),
+                  })
+                }
+                placeholder="1000"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="lat">Latitude (Optional)</Label>
+                <Input
+                  id="lat"
+                  type="number"
+                  step="any"
+                  value={addFormData.lat || ""}
+                  onChange={(e) =>
+                    setAddFormData({
+                      ...addFormData,
+                      lat: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  placeholder="0.000000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lng">Longitude (Optional)</Label>
+                <Input
+                  id="lng"
+                  type="number"
+                  step="any"
+                  value={addFormData.lng || ""}
+                  onChange={(e) =>
+                    setAddFormData({
+                      ...addFormData,
+                      lng: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  placeholder="0.000000"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employee">Assigned Employee</Label>
+              <Select
+                value={addFormData.employeeId || "none"}
+                onValueChange={(value) =>
+                  setAddFormData({
+                    ...addFormData,
+                    employeeId: value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsAddDialogOpen(false);
+                  setAddFormData(getInitialFormData());
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                Add
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Plant Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Plant</DialogTitle>
+            <DialogDescription>Update plant information</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={editFormData?.address}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, address: e.target.value })
+                }
+                placeholder="Plant address"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Type</Label>
+              <Select
+                value={editFormData?.type}
+                onValueChange={(value: "uf" | "ro") =>
+                  setEditFormData({ ...editFormData, type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ro">RO</SelectItem>
+                  <SelectItem value="uf">UF</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tehsil">Tehsil</Label>
+              <Input
+                id="tehsil"
+                value={editFormData?.tehsil}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, tehsil: e.target.value })
+                }
+                placeholder="Tehsil name"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="capacity">Capacity (Liters)</Label>
+              <Input
+                id="capacity"
+                type="number"
+                value={editFormData?.capacity}
+                onChange={(e) =>
+                  setEditFormData({
+                    ...editFormData,
+                    capacity: parseInt(e.target.value),
+                  })
+                }
+                placeholder="1000"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="lat">Latitude (Optional)</Label>
+                <Input
+                  id="lat"
+                  type="number"
+                  step="any"
+                  value={editFormData?.lat || ""}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      lat: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  placeholder="0.000000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lng">Longitude (Optional)</Label>
+                <Input
+                  id="lng"
+                  type="number"
+                  step="any"
+                  value={editFormData?.lng || ""}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      lng: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  placeholder="0.000000"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employee">Assigned Employee</Label>
+              <Select
+                value={editFormData?.employeeId || "none"}
+                onValueChange={(value) =>
+                  setEditFormData({
+                    ...editFormData,
+                    employeeId: value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditFormData(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                Update
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

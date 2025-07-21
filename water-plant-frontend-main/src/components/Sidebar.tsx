@@ -27,7 +27,6 @@ export const Sidebar = () => {
     { to: "/admin", icon: Home, label: "Dashboard" },
     { to: "/admin/employees", icon: Users, label: "Manage Employees" },
     { to: "/admin/plants", icon: Database, label: "Manage Plants" },
-    { to: "/admin/plant-details", icon: Settings, label: "Plant Details" },
     { to: "/admin/reports", icon: FileText, label: "Quality Reports" },
     { to: "/admin/analytics", icon: TrendingUp, label: "Analytics" },
   ];
