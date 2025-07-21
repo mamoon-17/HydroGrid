@@ -6,20 +6,18 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFiles,
   UseGuards,
-  UploadedFile,
   UseInterceptors,
-  NotFoundException,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RoleType } from 'src/users/users.entity';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { Express } from 'express';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import {
   CreateReportDto,
@@ -41,10 +39,25 @@ export class ReportsController {
 
   @Post()
   @UseGuards(AuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, uniqueSuffix + extname(file.originalname));
+        },
+      }),
+    }),
+  )
   createReport(
+    @UploadedFiles() files: Express.Multer.File[],
     @Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
   ) {
-    return this.reportsService.createReport(body);
+    const filePaths = files.map(
+      (f) => `https://dummy-s3.com/uploads/${f.filename}`,
+    );
+    return this.reportsService.createReport(body, filePaths);
   }
 
   @Get(':id')
@@ -56,11 +69,34 @@ export class ReportsController {
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, uniqueSuffix + extname(file.originalname));
+        },
+      }),
+    }),
+  )
   updateReport(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateReportSchema)) body: UpdateReportDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body(new ZodValidationPipe(UpdateReportSchema))
+    body: UpdateReportDto & {
+      mediaToRemove?: string[];
+    },
   ) {
-    return this.reportsService.updateReport(id, body);
+    const filePaths = files.map(
+      (f) => `https://dummy-s3.com/uploads/${f.filename}`,
+    );
+    return this.reportsService.updateReport(
+      id,
+      body,
+      filePaths,
+      body.mediaToRemove || [],
+    );
   }
 
   @Delete(':id')
@@ -82,44 +118,5 @@ export class ReportsController {
   @Roles(RoleType.ADMIN)
   getReportsByUser(@Param('userId') userId: string) {
     return this.reportsService.getReportsByUserId(userId);
-  }
-
-  // === MEDIA ROUTES ===
-
-  @Post(':id/media')
-  @UseGuards(AuthGuard)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads', // Placeholder: replace with S3 later
-        filename: (_req, file, callback) => {
-          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          callback(null, unique + extname(file.originalname));
-        },
-      }),
-    }),
-  )
-  async uploadMediaToReport(
-    @Param('id') reportId: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!file) {
-      throw new NotFoundException('No file uploaded');
-    }
-
-    const saved = await this.reportsService.saveMedia(reportId, file.path);
-    return { message: 'Media uploaded successfully', data: saved };
-  }
-
-  @Get(':id/media')
-  @UseGuards(AuthGuard)
-  async getReportMedia(@Param('id') reportId: string) {
-    return this.reportsService.getMediaByReportId(reportId);
-  }
-
-  @Delete('media/:mediaId')
-  @UseGuards(AuthGuard)
-  async deleteReportMedia(@Param('mediaId') mediaId: string) {
-    return this.reportsService.deleteMedia(mediaId);
   }
 }

@@ -30,34 +30,59 @@ export class ReportsService {
       relations: ['plant', 'submitted_by', 'media'],
     });
 
-    if (!report) {
-      throw new NotFoundException('Report not found');
-    }
-
+    if (!report) throw new NotFoundException('Report not found');
     return report;
   }
 
-  async createReport(payload: CreateReportDto): Promise<Report> {
-    const { plantId, userId, ...reportData } = payload;
+  async createReport(
+    payload: CreateReportDto,
+    filePaths: string[] = [],
+  ): Promise<Report> {
+    const { plantId, userId, ...data } = payload;
 
     const [plant] = await this.plantsService.getPlantsOrThrow([plantId]);
     const [user] = await this.usersService.getUsersOrThrow([userId]);
 
     const report = this.reportsRepo.create({
-      ...reportData,
+      ...data,
       plant,
       submitted_by: user,
     });
 
-    return this.reportsRepo.save(report);
+    const savedReport = await this.reportsRepo.save(report);
+
+    const media = filePaths.map((url) =>
+      this.mediaRepo.create({ url, report: savedReport }),
+    );
+    await this.mediaRepo.save(media);
+
+    return this.getReportById(savedReport.id);
   }
 
-  async updateReport(id: string, updates: UpdateReportDto): Promise<Report> {
+  async updateReport(
+    id: string,
+    updates: UpdateReportDto,
+    filePaths: string[] = [],
+    mediaToRemove: string[] = [],
+  ): Promise<Report> {
     const report = await this.reportsRepo.findOne({ where: { id } });
     if (!report) throw new NotFoundException('Report not found');
 
     Object.assign(report, updates);
-    return this.reportsRepo.save(report);
+    await this.reportsRepo.save(report);
+
+    if (mediaToRemove?.length) {
+      await Promise.all(mediaToRemove.map((id) => this.deleteMedia(id)));
+    }
+
+    if (filePaths.length) {
+      const media = filePaths.map((url) =>
+        this.mediaRepo.create({ url, report }),
+      );
+      await this.mediaRepo.save(media);
+    }
+
+    return this.getReportById(report.id);
   }
 
   async deleteReport(id: string): Promise<{ message: string }> {
@@ -71,7 +96,6 @@ export class ReportsService {
 
   async getReportsByPlantId(plantId: string): Promise<Report[]> {
     await this.plantsService.getPlantsOrThrow([plantId]);
-
     return this.reportsRepo.find({
       where: { plant: { id: plantId } },
       relations: ['plant', 'submitted_by', 'media'],
@@ -80,21 +104,26 @@ export class ReportsService {
 
   async getReportsByUserId(userId: string): Promise<Report[]> {
     await this.usersService.getUsersOrThrow([userId]);
-
     return this.reportsRepo.find({
       where: { submitted_by: { id: userId } },
       relations: ['plant', 'submitted_by', 'media'],
     });
   }
 
-  async saveMedia(reportId: string, filePath: string): Promise<ReportMedia> {
-    const report = await this.reportsRepo.findOne({ where: { id: reportId } });
-    if (!report) {
-      throw new NotFoundException('Report not found');
+  async deleteMedia(mediaId: string): Promise<{ message: string }> {
+    const media = await this.mediaRepo.findOne({ where: { id: mediaId } });
+
+    if (!media) throw new NotFoundException('Media not found');
+
+    try {
+      await unlink(media.url);
+    } catch {
+      // ignore file not found
     }
 
-    const media = this.mediaRepo.create({ url: filePath, report });
-    return this.mediaRepo.save(media);
+    await this.mediaRepo.delete({ id: mediaId });
+
+    return { message: 'Media deleted successfully' };
   }
 
   async getMediaByReportId(reportId: string): Promise<ReportMedia[]> {
@@ -102,25 +131,5 @@ export class ReportsService {
       where: { report: { id: reportId } },
       order: { created_at: 'DESC' },
     });
-  }
-
-  async deleteMedia(mediaId: string): Promise<{ message: string }> {
-    const media = await this.mediaRepo.findOne({
-      where: { id: mediaId },
-    });
-
-    if (!media) {
-      throw new NotFoundException('Media not found');
-    }
-
-    try {
-      await unlink(media.url);
-    } catch (err) {
-      // ignore
-    }
-
-    await this.mediaRepo.delete({ id: mediaId });
-
-    return { message: 'Media deleted successfully' };
   }
 }

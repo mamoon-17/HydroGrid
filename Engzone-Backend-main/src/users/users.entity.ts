@@ -2,7 +2,6 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToMany,
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
@@ -38,8 +37,8 @@ export class Users {
   @Column({ type: 'varchar', unique: true, length: 16 })
   phone: string;
 
-  @ManyToMany(() => Plants, (plant) => plant.users)
-  plants?: Plants[];
+  @OneToMany(() => Plants, (plant) => plant.user)
+  plants: Plants[];
 
   @OneToMany(() => RefreshToken, (token) => token.user)
   refreshTokens: RefreshToken[];

@@ -61,10 +61,10 @@ export class PlantsController {
     return this.plantsService.getPlantsByIds(idArray);
   }
 
-  @Get(':id/employees')
+  @Get(':id/employee')
   @UseGuards(AuthGuard)
   getPlantEmployees(@Param('id') id: string) {
-    return this.plantsService.getPlantEmployees(id);
+    return this.plantsService.getPlantEmployee(id);
   }
 
   @Patch(':id')
@@ -82,15 +82,5 @@ export class PlantsController {
   @Roles(RoleType.ADMIN)
   deletePlant(@Param('id') id: string) {
     return this.plantsService.deletePlant(id);
-  }
-
-  @Patch(':id/unassign-users')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
-  unassignUsersFromPlant(
-    @Param('id') plantId: string,
-    @Body('userIds') userIds: string[],
-  ) {
-    return this.plantsService.unassignUsers(plantId, userIds);
   }
 }

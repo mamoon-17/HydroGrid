@@ -22,15 +22,15 @@ export class PlantsService {
 
   async getAllPlants(): Promise<Plants[]> {
     return this.plantsRepo.find({
-      relations: ['users'],
+      relations: ['user'],
     });
   }
 
   async getAssignedPlants(userId: string): Promise<Plants[]> {
     return this.plantsRepo.find({
-      relations: ['users'],
+      relations: ['user'],
       where: {
-        users: {
+        user: {
           id: userId,
         },
       },
@@ -38,11 +38,13 @@ export class PlantsService {
   }
 
   async createPlant(payload: CreatePlantDto): Promise<Plants> {
-    const { address, lat, lng, tehsil, type, capacity, userIds } = payload;
+    const { address, lat, lng, tehsil, type, capacity, userId } = payload;
 
-    const users = userIds?.length
-      ? await this.usersService.getUsersOrThrow(userIds)
-      : [];
+    let user: Users | undefined = undefined;
+    if (userId) {
+      const [foundUser] = await this.usersService.getUsersOrThrow([userId]);
+      user = foundUser;
+    }
 
     const plant = this.plantsRepo.create({
       address,
@@ -51,7 +53,7 @@ export class PlantsService {
       tehsil: tehsil.trim().toLowerCase(),
       type,
       capacity,
-      users,
+      user,
     });
 
     return this.plantsRepo.save(plant);
@@ -61,55 +63,46 @@ export class PlantsService {
     if (!ids.length) return [];
     return this.plantsRepo.find({
       where: { id: In(ids) },
-      relations: ['users'],
+      relations: ['user'],
     });
   }
 
-  async getPlantEmployees(id: string): Promise<Users[]> {
+  async getPlantEmployee(id: string): Promise<Users | null> {
     const plant = await this.plantsRepo.findOne({
       where: { id },
-      relations: ['users'],
+      relations: ['user'],
     });
 
     if (!plant) {
       throw new NotFoundException('Plant not found');
     }
 
-    return plant.users;
+    return plant.user ?? null;
   }
 
-  async updatePlant(
-    id: string,
-    updates: UpdatePlantDto,
-  ): Promise<Plants | { message: string }> {
+  async updatePlant(id: string, updates: UpdatePlantDto): Promise<Plants> {
     const existing = await this.plantsRepo.findOne({
       where: { id },
-      relations: ['users'],
+      relations: ['user'],
     });
 
     if (!existing) {
       throw new NotFoundException('Plant not found');
     }
 
-    const { userIds, tehsil, ...rest } = updates;
+    const { userId, tehsil, ...rest } = updates;
 
-    // Normalize tehsil
-    if (tehsil) {
-      existing.tehsil = tehsil.trim().toLowerCase();
+    if (userId === null) {
+      // Unassign user
+      existing.user = null;
+    } else if (userId) {
+      // Assign new user
+      const [user] = await this.usersService.getUsersOrThrow([userId]);
+      existing.user = user;
     }
 
-    if (userIds?.length) {
-      const users = await this.usersService.getUsersOrThrow(userIds);
-
-      const existingUserIds = new Set(existing.users.map((u) => u.id));
-      const newUsers = users.filter((user) => !existingUserIds.has(user.id));
-
-      const originalLength = existing.users.length;
-      existing.users.push(...newUsers);
-
-      if (existing.users.length === originalLength) {
-        return { message: 'No new users were assigned (already assigned)' };
-      }
+    if (tehsil) {
+      existing.tehsil = tehsil.trim().toLowerCase();
     }
 
     Object.assign(existing, rest);
@@ -125,37 +118,12 @@ export class PlantsService {
     return { message: 'Plant deleted successfully' };
   }
 
-  async unassignUsers(
-    plantId: string,
-    userIds: string[],
-  ): Promise<{ message: string }> {
-    if (!userIds?.length) {
-      throw new BadRequestException('userIds array is required');
-    }
-
-    const plant = await this.plantsRepo.findOne({
-      where: { id: plantId },
-      relations: ['users'],
-    });
-
-    if (!plant) {
-      throw new NotFoundException('Plant not found');
-    }
-
-    // Filter out the users to be unassigned
-    plant.users = plant.users = plant.users.filter(
-      (user) => user.id && !userIds.includes(user.id),
-    );
-
-    await this.plantsRepo.save(plant);
-
-    return { message: 'Users unassigned from plant successfully' };
-  }
-
   async getPlantsOrThrow(ids: string[]): Promise<Plants[]> {
     if (!ids.length) return [];
 
-    const plants = await this.plantsRepo.find({ where: { id: In(ids) } });
+    const plants = await this.plantsRepo.find({
+      where: { id: In(ids) },
+    });
 
     if (plants.length !== ids.length) {
       throw new NotFoundException('One or more plants not found');

@@ -4,8 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToMany,
-  JoinTable,
+  ManyToOne,
 } from 'typeorm';
 import { Users } from '../users/users.entity';
 
@@ -40,9 +39,11 @@ export class Plants {
   @Column({ type: 'int', unsigned: true, nullable: false })
   capacity: number;
 
-  @ManyToMany(() => Users, (user) => user.plants)
-  @JoinTable()
-  users: Users[];
+  @ManyToOne(() => Users, (user) => user.plants, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  user: Users | null;
 
   @CreateDateColumn()
   created_at: Date;
