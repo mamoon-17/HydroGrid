@@ -1,3 +1,4 @@
+// This is the generic API fetch wrapper. It automatically attempts to refresh the access token on 401/403 errors and retries the original request once. Use this for all API calls.
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export async function apiFetch<T = any>(

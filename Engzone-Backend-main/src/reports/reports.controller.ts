@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   Req,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -82,24 +83,31 @@ export class ReportsController {
       }),
     }),
   )
-  updateReport(
+  async updateReport(
     @Param('id') id: string,
     @UploadedFiles() files: Express.Multer.File[],
     @Body(new ZodValidationPipe(UpdateReportSchema))
     body: UpdateReportDto & { mediaToRemove?: string[] },
     @Req() req,
   ) {
-    const filePaths = files.map(
-      (f) => `https://dummy-s3.com/uploads/${f.filename}`,
-    );
-    const userRole = req.user?.role;
-    return this.reportsService.updateReport(
-      id,
-      body,
-      filePaths,
-      body.mediaToRemove || [],
-      userRole,
-    );
+    try {
+      const filePaths = (files ?? []).map(
+        (f) => `https://dummy-s3.com/uploads/${f.filename}`,
+      );
+      const userRole = req.user?.role;
+      return await this.reportsService.updateReport(
+        id,
+        body,
+        filePaths,
+        body.mediaToRemove || [],
+        userRole,
+      );
+    } catch (err) {
+      console.error('Update report error:', err);
+      throw new InternalServerErrorException(
+        err.message || JSON.stringify(err)
+      );
+    }
   }
 
   @Delete(':id')

@@ -44,6 +44,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import { Label } from "../../components/ui/label";
+import { apiFetch } from '../../lib/api';
 
 interface Report {
   id: string;
@@ -106,22 +107,7 @@ const WorkHistory = () => {
   const fetchUserReports = async () => {
     try {
       setLoading(true);
-
-      const response = await fetch(
-        `http://localhost:3000/reports/user/${user?.id}`,
-        {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch reports: ${response.status}`);
-      }
-
-      const userReports = await response.json();
+      const userReports = await apiFetch(`/reports/user/${user?.id}`);
       setReports(userReports);
     } catch (err) {
       console.error("Failed to load user reports", err);
@@ -217,8 +203,8 @@ const WorkHistory = () => {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="md:col-span-1 lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -231,7 +217,7 @@ const WorkHistory = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="md:col-span-1 lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Month</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -241,21 +227,6 @@ const WorkHistory = () => {
               {stats.thisMonth}
             </div>
             <p className="text-xs text-muted-foreground">Reports submitted</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Weekly Average
-            </CardTitle>
-            <History className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">
-              {stats.averagePerWeek}
-            </div>
-            <p className="text-xs text-muted-foreground">Reports per week</p>
           </CardContent>
         </Card>
       </div>
@@ -627,6 +598,7 @@ const WorkHistory = () => {
                         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Edit Report</DialogTitle>
+                            <DialogDescription />
                           </DialogHeader>
                           {report.edit_count >= 2 ? (
                             <div className="text-danger">
@@ -636,9 +608,45 @@ const WorkHistory = () => {
                             <form
                               onSubmit={async (e) => {
                                 e.preventDefault();
-                                // Call backend PATCH /reports/:id with editForm
-                                // On success, close dialog and refresh reports
-                                // On error, show toast
+                                try {
+                                  // Clean and validate payload for backend
+                                  const cleanEnum = (val, allowed) => allowed.includes(val) ? val : allowed[0];
+                                  const allowedBackwash = ["done", "not_done", "not_required"];
+                                  const payload = {
+                                    raw_water_tds: Number(editForm.raw_water_tds) || 0,
+                                    permeate_water_tds: Number(editForm.permeate_water_tds) || 0,
+                                    raw_water_ph: Number(editForm.raw_water_ph) || 0,
+                                    permeate_water_ph: Number(editForm.permeate_water_ph) || 0,
+                                    product_water_tds: Number(editForm.product_water_tds) || 0,
+                                    product_water_flow: Number(editForm.product_water_flow) || 0,
+                                    product_water_ph: Number(editForm.product_water_ph) || 0,
+                                    reject_water_flow: Number(editForm.reject_water_flow) || 0,
+                                    membrane_inlet_pressure: Number(editForm.membrane_inlet_pressure) || 0,
+                                    membrane_outlet_pressure: Number(editForm.membrane_outlet_pressure) || 0,
+                                    raw_water_inlet_pressure: Number(editForm.raw_water_inlet_pressure) || 0,
+                                    volts_amperes: Number(editForm.volts_amperes) || 0,
+                                    chemical_refill_litres: Number(editForm.chemical_refill_litres) || 0,
+                                    cartridge_filter_replacement: Math.max(0, Math.min(2, Number(editForm.cartridge_filter_replacement) || 0)),
+                                    membrane_replacement: Math.max(0, Math.min(8, Number(editForm.membrane_replacement) || 0)),
+                                    cip: editForm.cip === true || editForm.cip === "yes",
+                                    multimedia_backwash: cleanEnum(editForm.multimedia_backwash, allowedBackwash),
+                                    carbon_backwash: cleanEnum(editForm.carbon_backwash, allowedBackwash),
+                                    membrane_cleaning: cleanEnum(editForm.membrane_cleaning, allowedBackwash),
+                                    arsenic_media_backwash: cleanEnum(editForm.arsenic_media_backwash, allowedBackwash),
+                                    notes: editForm.notes || "",
+                                  };
+                                  await apiFetch(`/reports/${editReport.id}`, {
+                                    method: "PATCH",
+                                    body: JSON.stringify(payload),
+                                  });
+                                  toast.success("Report updated successfully!");
+                                  setEditDialogOpen(false);
+                                  fetchUserReports();
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : "Failed to update report"
+                                  );
+                                }
                               }}
                             >
                               <Label htmlFor="raw_water_tds">

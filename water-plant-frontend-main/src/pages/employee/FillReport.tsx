@@ -21,6 +21,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { ClipboardList, Save, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
+import { apiFetch } from '../../lib/api';
 
 interface Plant {
   id: string;
@@ -138,19 +139,7 @@ const FillReport = () => {
   const fetchAssignedPlants = async () => {
     try {
       setLoading(true);
-
-      const response = await fetch("http://localhost:3000/plants/assigned", {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch assigned plants: ${response.status}`);
-      }
-
-      const plants = await response.json();
+      const plants = await apiFetch('/plants/assigned');
       setAssignedPlants(plants);
     } catch (err) {
       toast.error(
@@ -322,29 +311,15 @@ const FillReport = () => {
         arsenic_media_backwash: formData.arsenic_media_backwash,
         cip: formData.cip,
         chemical_refill_litres: parseFloat(formData.chemical_refill_litres),
-        cartridge_filter_replacement: parseFloat(
-          formData.cartridge_filter_replacement
-        ),
-        membrane_replacement: parseFloat(formData.membrane_replacement),
+        cartridge_filter_replacement: Math.max(0, Math.min(2, parseFloat(formData.cartridge_filter_replacement))),
+        membrane_replacement: Math.max(0, Math.min(8, parseFloat(formData.membrane_replacement))),
         notes: formData.notes || "",
       };
 
-      const response = await fetch("http://localhost:3000/reports", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      await apiFetch('/reports', {
+        method: 'POST',
         body: JSON.stringify(reportData),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Report submission error:", errorData);
-        throw new Error(
-          errorData.message || `Failed to submit report: ${response.status}`
-        );
-      }
 
       toast.success("Report submitted successfully!");
 

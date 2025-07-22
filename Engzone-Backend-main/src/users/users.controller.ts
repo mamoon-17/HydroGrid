@@ -36,6 +36,7 @@ export class UsersController {
   }
 
   @Post()
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
   async createUser(
     @Body(new ZodValidationPipe(CreateUserSchema)) payload: CreateUserDto,
