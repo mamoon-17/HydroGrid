@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   Req,
   InternalServerErrorException,
+  Query,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -120,8 +121,16 @@ export class ReportsController {
   @Get('plant/:plantId')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
-  getReportsByPlant(@Param('plantId') plantId: string) {
-    return this.reportsService.getReportsByPlantId(plantId);
+  getReportsByPlant(
+    @Param('plantId') plantId: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string
+  ) {
+    return this.reportsService.getReportsByPlantId(
+      plantId,
+      limit ? parseInt(limit) : undefined,
+      offset ? parseInt(offset) : undefined
+    );
   }
 
   @Get('user/:userId')

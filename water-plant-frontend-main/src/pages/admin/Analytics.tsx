@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
@@ -10,165 +10,171 @@ import { ScrollArea, ScrollBar } from '../../components/ui/scroll-area';
 import { BarChart3, LineChart, Table as TableIcon, Calendar, ChevronDown, Check, MapPin, User, Droplets } from 'lucide-react';
 import { LineChart as RechartsLineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { cn } from '../../lib/utils';
+import { apiFetch } from '../../lib/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 
 const Analytics = () => {
   const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
-  const [selectedPlant, setSelectedPlant] = useState('plant-1');
+  const [plants, setPlants] = useState<any[]>([]);
+  const [selectedPlant, setSelectedPlant] = useState<string>('');
   const [plantSelectorOpen, setPlantSelectorOpen] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [reportOffset, setReportOffset] = useState(0);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const REPORTS_PAGE_SIZE = 5;
 
-  // Mock plants data
-  const plants = [
-    {
-      id: 'plant-1',
-      name: 'RO Plant Alpha',
-      location: 'Sector 15, Karachi',
-      type: 'RO',
-      capacity: '2000 LPH',
-      assignedEmployee: 'John Doe',
-      tehsil: 'Gulshan',
-      coordinates: '24.8607° N, 67.0011° E',
-      status: 'maintained'
-    },
-    {
-      id: 'plant-2',
-      name: 'UF Plant Beta',
-      location: 'Block A, Lahore',
-      type: 'UF',
-      capacity: '1000 LPH',
-      assignedEmployee: 'Jane Smith',
-      tehsil: 'Model Town',
-      coordinates: '31.5204° N, 74.3587° E',
-      status: 'warning'
-    },
-    {
-      id: 'plant-3',
-      name: 'RO Plant Gamma',
-      location: 'Industrial Area, Islamabad',
-      type: 'RO',
-      capacity: '500 LPH',
-      assignedEmployee: 'Mike Johnson',
-      tehsil: 'I-9',
-      coordinates: '33.6844° N, 73.0479° E',
-      status: 'pending'
+  // --- Fix 1: Parameter History Horizontal Pagination ---
+  // Only show a window of 5 reports at a time, fetch more as you scroll right
+  const [visibleStart, setVisibleStart] = useState(0);
+  const PAGE_SIZE = 5;
+
+  // When reports change, reset visible window
+  useEffect(() => {
+    setVisibleStart(0);
+  }, [reports]);
+
+  // Only show a window of reports (columns)
+  const visibleReports = reports.slice(visibleStart, visibleStart + PAGE_SIZE);
+  const visibleDates = visibleReports.map(r => r.created_at).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+  // On scroll right, fetch more and shift window
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10 && hasMore && !isFetchingMore) {
+      fetchMoreReports();
+      setVisibleStart(prev => prev + PAGE_SIZE);
     }
-  ];
+  };
 
-  // Get current plant data
+  // --- Fix 2: Plant Dropdown Robustness (improved) ---
+  const safePlants = Array.isArray(plants) ? plants : [];
+  const safeCurrentPlant = safePlants.find(plant => plant.id === selectedPlant) || safePlants[0] || {};
+  const hasPlants = safePlants.length > 0;
+
+  // --- Fix 3: Status Color Logic ---
+  // Green: last report within 7 days, Yellow: 8-15, Red: >15 or never
+  let statusColor = 'bg-danger';
+  let statusText = 'No recent reports';
+  if (reports.length > 0) {
+    const lastReportDate = new Date(reports[0].created_at);
+    const now = new Date();
+    const daysAgo = Math.floor((now.getTime() - lastReportDate.getTime()) / (1000 * 3600 * 24));
+    if (daysAgo <= 7) {
+      statusColor = 'bg-success';
+      statusText = 'Maintained';
+    } else if (daysAgo <= 15) {
+      statusColor = 'bg-warning';
+      statusText = 'Pending';
+    } else {
+      statusColor = 'bg-danger';
+      statusText = 'Warning';
+    }
+  }
+
+  // Fetch plants on mount
+  useEffect(() => {
+    const fetchPlants = async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch('/plants');
+        setPlants(data);
+        if (data.length > 0 && !selectedPlant) {
+          setSelectedPlant(data[0].id);
+        }
+      } catch (err) {
+        // handle error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPlants();
+  }, []);
+
+  // Fetch reports for selected plant with pagination
+  useEffect(() => {
+    if (!selectedPlant) return;
+    setReports([]);
+    setReportOffset(0);
+    setHasMore(true);
+    fetchMoreReports(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlant]);
+
+  const fetchMoreReports = async (reset = false) => {
+    if (!selectedPlant) return;
+    setIsFetchingMore(true);
+    try {
+      const data = await apiFetch(`/reports/plant/${selectedPlant}?limit=${REPORTS_PAGE_SIZE}&offset=${reset ? 0 : reportOffset}`);
+      if (reset) {
+        setReports(data);
+        setReportOffset(data.length);
+      } else {
+        setReports(prev => [...prev, ...data]);
+        setReportOffset(prev => prev + data.length);
+      }
+      setHasMore(data.length === REPORTS_PAGE_SIZE);
+    } catch (err) {
+      setHasMore(false);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
   const currentPlant = plants.find(plant => plant.id === selectedPlant) || plants[0];
 
-  // Mock historical data - plant-specific
-  const getHistoricalDataForPlant = (plantId: string) => {
-    const baseData = [
-      {
-        parameter: 'Flow Rate',
-        unit: 'LPH',
-        records: [
-          { date: '2024-01-15', time: '14:30', value: 1250, reportedBy: 'John Doe' },
-          { date: '2024-01-10', time: '09:15', value: 1180, reportedBy: 'Jane Smith' },
-          { date: '2024-01-05', time: '16:45', value: 1220, reportedBy: 'Mike Johnson' },
-          { date: '2024-01-01', time: '11:20', value: 1150, reportedBy: 'Sarah Wilson' },
-          { date: '2023-12-28', time: '13:10', value: 1190, reportedBy: 'John Doe' },
-          { date: '2023-12-25', time: '10:30', value: 1160, reportedBy: 'Jane Smith' }
-        ]
-      },
-      {
-        parameter: 'TDS',
-        unit: 'ppm',
-        records: [
-          { date: '2024-01-15', time: '14:30', value: 42, reportedBy: 'John Doe' },
-          { date: '2024-01-10', time: '09:15', value: 48, reportedBy: 'Jane Smith' },
-          { date: '2024-01-05', time: '16:45', value: 45, reportedBy: 'Mike Johnson' },
-          { date: '2024-01-01', time: '11:20', value: 52, reportedBy: 'Sarah Wilson' },
-          { date: '2023-12-28', time: '13:10', value: 38, reportedBy: 'John Doe' },
-          { date: '2023-12-25', time: '10:30', value: 44, reportedBy: 'Jane Smith' }
-        ]
-      },
-      {
-        parameter: 'Membrane Inlet Pressure',
-        unit: 'PSI',
-        records: [
-          { date: '2024-01-15', time: '14:30', value: 185, reportedBy: 'John Doe' },
-          { date: '2024-01-10', time: '09:15', value: 190, reportedBy: 'Jane Smith' },
-          { date: '2024-01-05', time: '16:45', value: 188, reportedBy: 'Mike Johnson' },
-          { date: '2024-01-01', time: '11:20', value: 192, reportedBy: 'Sarah Wilson' },
-          { date: '2023-12-28', time: '13:10', value: 183, reportedBy: 'John Doe' },
-          { date: '2023-12-25', time: '10:30', value: 187, reportedBy: 'Jane Smith' }
-        ]
-      },
-      {
-        parameter: 'Membrane Outlet Pressure',
-        unit: 'PSI',
-        records: [
-          { date: '2024-01-15', time: '14:30', value: 95, reportedBy: 'John Doe' },
-          { date: '2024-01-10', time: '09:15', value: 92, reportedBy: 'Jane Smith' },
-          { date: '2024-01-05', time: '16:45', value: 94, reportedBy: 'Mike Johnson' },
-          { date: '2024-01-01', time: '11:20', value: 89, reportedBy: 'Sarah Wilson' },
-          { date: '2023-12-28', time: '13:10', value: 97, reportedBy: 'John Doe' },
-          { date: '2023-12-25', time: '10:30', value: 91, reportedBy: 'Jane Smith' }
-        ]
-      }
-    ];
+  // Build parameter history from reports
+  const parameterKeys = reports.length > 0 ? Object.keys(reports[0]).filter(k =>
+    [
+      'raw_water_tds', 'permeate_water_tds', 'raw_water_ph', 'permeate_water_ph',
+      'product_water_tds', 'product_water_flow', 'product_water_ph', 'reject_water_flow',
+      'membrane_inlet_pressure', 'membrane_outlet_pressure', 'raw_water_inlet_pressure',
+      'volts_amperes', 'chemical_refill_litres', 'cartridge_filter_replacement', 'membrane_replacement'
+    ].includes(k)
+  ) : [];
 
-    // Modify values slightly based on plant ID for variety
-    if (plantId === 'plant-2') {
-      baseData[0].records = baseData[0].records.map(r => ({ ...r, value: r.value * 0.5 })); // UF plant has lower flow
-      baseData[1].records = baseData[1].records.map(r => ({ ...r, value: r.value + 5 })); // Slightly higher TDS
-    } else if (plantId === 'plant-3') {
-      baseData[0].records = baseData[0].records.map(r => ({ ...r, value: r.value * 0.25 })); // 500LPH plant
-      baseData[2].records = baseData[2].records.map(r => ({ ...r, value: r.value - 10 })); // Lower pressure
-    }
-
-    return baseData;
+  const parameterLabels: Record<string, string> = {
+    raw_water_tds: 'Raw Water TDS (ppm)',
+    permeate_water_tds: 'Permeate Water TDS (ppm)',
+    raw_water_ph: 'Raw Water pH',
+    permeate_water_ph: 'Permeate Water pH',
+    product_water_tds: 'Product Water TDS (ppm)',
+    product_water_flow: 'Product Water Flow (LPH)',
+    product_water_ph: 'Product Water pH',
+    reject_water_flow: 'Reject Water Flow (LPH)',
+    membrane_inlet_pressure: 'Membrane Inlet Pressure (PSI)',
+    membrane_outlet_pressure: 'Membrane Outlet Pressure (PSI)',
+    raw_water_inlet_pressure: 'Raw Water Inlet Pressure (PSI)',
+    volts_amperes: 'Volts/Amperes',
+    chemical_refill_litres: 'Chemical Refill (L)',
+    cartridge_filter_replacement: 'Cartridge Filter Replacement',
+    membrane_replacement: 'Membrane Replacement',
   };
 
-  const historicalData = getHistoricalDataForPlant(selectedPlant);
+  const allDates = reports.map(r => r.created_at).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-  // Mock chart data (kept for chart view)
-  const chartData = [
-    { month: 'Jan', flowRate: 1180, tds: 48, inletPressure: 190, outletPressure: 92 },
-    { month: 'Feb', flowRate: 1220, tds: 45, inletPressure: 188, outletPressure: 94 },
-    { month: 'Mar', flowRate: 1190, tds: 52, inletPressure: 192, outletPressure: 89 },
-    { month: 'Apr', flowRate: 1250, tds: 42, inletPressure: 185, outletPressure: 95 },
-    { month: 'May', flowRate: 1280, tds: 38, inletPressure: 183, outletPressure: 97 },
-    { month: 'Jun', flowRate: 1250, tds: 42, inletPressure: 185, outletPressure: 95 }
-  ];
-
-  // Get all unique dates across all parameters and sort them (latest first)
-  const getAllDates = () => {
-    const allDates = new Set<string>();
-    historicalData.forEach(param => {
-      param.records.forEach(record => {
-        allDates.add(`${record.date} ${record.time}`);
-      });
-    });
-    return Array.from(allDates).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  // Fix: Popover/plant selector should always be clickable
+  const handlePlantSelect = (plantId: string) => {
+    setSelectedPlant(plantId);
+    setPlantSelectorOpen(false);
   };
 
-  const allDates = getAllDates();
-
-  // Create timeline data matrix
-  const getTimelineData = () => {
-    return historicalData.map(parameter => {
-      const parameterData: any = {
-        parameter: parameter.parameter,
-        unit: parameter.unit,
-        values: {}
-      };
-      
-      // Map values to their corresponding dates
-      parameter.records.forEach(record => {
-        const dateKey = `${record.date} ${record.time}`;
-        parameterData.values[dateKey] = {
-          value: record.value,
-          reportedBy: record.reportedBy
-        };
-      });
-      
-      return parameterData;
-    });
-  };
-
-  const timelineData = getTimelineData();
+  // Chart data: build from reports (fallback to empty if no data)
+  const chartData = reports.length > 0 ? reports.map(r => ({
+    date: new Date(r.created_at).toLocaleDateString(),
+    flowRate: r.product_water_flow,
+    tds: r.product_water_tds,
+    inletPressure: r.membrane_inlet_pressure,
+    outletPressure: r.membrane_outlet_pressure,
+  })) : [];
 
   const getValueChangeIndicator = (current: number, previous: number) => {
     if (current > previous) return { icon: '↗', color: 'text-success' };
@@ -209,53 +215,25 @@ const Analytics = () => {
       {/* Plant Selector */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Select Plant</label>
-                <Popover open={plantSelectorOpen} onOpenChange={setPlantSelectorOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={plantSelectorOpen}
-                      className="w-[280px] justify-between mt-1"
-                    >
-                      {currentPlant.name}
-                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0">
-                    <Command>
-                      <CommandInput placeholder="Search plants..." />
-                      <CommandEmpty>No plant found.</CommandEmpty>
-                      <CommandGroup>
-                        {plants.map((plant) => (
-                          <CommandItem
-                            key={plant.id}
-                            value={plant.id}
-                            onSelect={(currentValue) => {
-                              setSelectedPlant(currentValue);
-                              setPlantSelectorOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedPlant === plant.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-medium">{plant.name}</span>
-                              <span className="text-sm text-muted-foreground">{plant.location}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="space-y-2 w-full">
+              <label className="text-sm font-medium text-muted-foreground">Select Plant</label>
+              <Select
+                value={selectedPlant}
+                onValueChange={(value) => handlePlantSelect(value)}
+                disabled={!hasPlants}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a plant..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {safePlants.map((plant) => (
+                    <SelectItem key={plant.id} value={plant.id}>
+                      {plant.address} ({plant.type?.toUpperCase?.() || ''})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -271,46 +249,38 @@ const Analytics = () => {
                   <Droplets className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">{currentPlant.name}</h2>
-                  <p className="text-muted-foreground">{currentPlant.type} Plant • {currentPlant.capacity}</p>
+                  <h2 className="text-2xl font-bold text-foreground">{safeCurrentPlant?.address}</h2>
+                  <p className="text-muted-foreground">{safeCurrentPlant?.type?.toUpperCase()} Plant • {safeCurrentPlant?.capacity?.toLocaleString()} LPH</p>
                 </div>
               </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">{currentPlant.location}</p>
-                    <p className="text-xs text-muted-foreground">{currentPlant.tehsil}</p>
+                    <p className="text-sm font-medium text-foreground">{safeCurrentPlant?.address}</p>
+                    <p className="text-xs text-muted-foreground">{safeCurrentPlant?.tehsil}</p>
                   </div>
                 </div>
-                
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">{currentPlant.assignedEmployee}</p>
-                    <p className="text-xs text-muted-foreground">Assigned Engineer</p>
+                    <p className="text-sm font-medium text-foreground">{safeCurrentPlant?.employee?.name || 'Unassigned'}</p>
+                    <p className="text-xs text-muted-foreground">Assigned Employee</p>
                   </div>
                 </div>
-                
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 flex items-center justify-center">
-                    <div className={cn(
-                      "h-2 w-2 rounded-full",
-                      currentPlant.status === 'maintained' ? 'bg-success' :
-                      currentPlant.status === 'warning' ? 'bg-warning' : 'bg-danger'
-                    )} />
+                    <div className={`h-2 w-2 rounded-full ${statusColor}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground capitalize">{currentPlant.status}</p>
+                    <p className="text-sm font-medium text-foreground capitalize">{statusText}</p>
                     <p className="text-xs text-muted-foreground">Current Status</p>
                   </div>
                 </div>
               </div>
             </div>
-            
             <Badge variant="outline" className="capitalize">
-              {currentPlant.type} System
+              {safeCurrentPlant?.type} System
             </Badge>
           </div>
         </CardContent>
@@ -329,21 +299,26 @@ const Analytics = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <ScrollArea className="w-full">
-              <div className="min-w-full">
-                <Table>
+            <div
+              className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent"
+              ref={scrollAreaRef}
+              onScroll={handleScroll}
+              style={{ WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}
+            >
+              <div style={{ minWidth: `${180 + visibleDates.length * 160}px` }}>
+                <Table style={{ minWidth: `${180 + visibleDates.length * 160}px` }}>
                   <TableHeader>
                     <TableRow className="border-b-2">
                       <TableHead className="sticky left-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 min-w-[200px] font-semibold">
                         Parameter
                       </TableHead>
-                      {allDates.map((dateTime) => {
-                        const [date, time] = dateTime.split(' ');
+                      {visibleDates.map((dateTime) => {
+                        const date = new Date(dateTime);
                         return (
                           <TableHead key={dateTime} className="text-center min-w-[140px] border-l">
                             <div className="flex flex-col">
-                              <span className="font-semibold">{date}</span>
-                              <span className="text-xs text-muted-foreground">{time}</span>
+                              <span className="font-semibold">{date.toLocaleDateString()}</span>
+                              <span className="text-xs text-muted-foreground">{date.toLocaleTimeString()}</span>
                             </div>
                           </TableHead>
                         );
@@ -351,40 +326,24 @@ const Analytics = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {timelineData.map((paramData) => (
-                      <TableRow key={paramData.parameter} className="hover:bg-muted/30">
+                    {parameterKeys.map((paramKey) => (
+                      <TableRow key={paramKey} className="hover:bg-muted/30">
                         <TableCell className="sticky left-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 font-medium border-r">
                           <div className="flex flex-col">
-                            <span className="font-semibold text-foreground">{paramData.parameter}</span>
-                            <span className="text-xs text-muted-foreground">({paramData.unit})</span>
+                            <span className="font-semibold text-foreground">{parameterLabels[paramKey]}</span>
                           </div>
                         </TableCell>
-                        {allDates.map((dateTime, index) => {
-                          const cellData = paramData.values[dateTime];
-                          const nextDateTime = allDates[index + 1];
-                          const nextCellData = nextDateTime ? paramData.values[nextDateTime] : null;
-                          
+                        {visibleDates.map((dateTime) => {
+                          const report = reports.find(r => r.created_at === dateTime);
                           return (
                             <TableCell key={dateTime} className="text-center border-l relative group">
-                              {cellData ? (
+                              {report && report[paramKey] !== undefined ? (
                                 <div className="flex flex-col items-center space-y-1">
                                   <span className="font-semibold text-foreground">
-                                    {cellData.value}
+                                    {report[paramKey]}
                                   </span>
-                                  {nextCellData && (
-                                    <div className="flex items-center gap-1">
-                                      {(() => {
-                                        const indicator = getValueChangeIndicator(cellData.value, nextCellData.value);
-                                        return (
-                                          <span className={`text-xs ${indicator.color}`}>
-                                            {indicator.icon}
-                                          </span>
-                                        );
-                                      })()}
-                                    </div>
-                                  )}
                                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 bg-popover border rounded-md p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap">
-                                    <div>Reported by: {cellData.reportedBy}</div>
+                                    <div>Reported by: {report.submitted_by?.name || 'Unknown'}</div>
                                   </div>
                                 </div>
                               ) : (
@@ -397,20 +356,24 @@ const Analytics = () => {
                     ))}
                   </TableBody>
                 </Table>
+                {isFetchingMore && (
+                  <div className="text-center py-2 text-muted-foreground">Loading more reports...</div>
+                )}
               </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+              {/* Always show horizontal scrollbar if overflow */}
+              <div style={{ height: 8 }} />
+            </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           <Tabs defaultValue="line" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="line" className="flex items-center gap-2">
+              <TabsTrigger value="line" className="flex items-center gap-2" onClick={() => setViewMode('chart')}>
                 <LineChart className="h-4 w-4" />
                 Line Chart
               </TabsTrigger>
-              <TabsTrigger value="bar" className="flex items-center gap-2">
+              <TabsTrigger value="bar" className="flex items-center gap-2" onClick={() => setViewMode('chart')}>
                 <BarChart3 className="h-4 w-4" />
                 Bar Chart
               </TabsTrigger>
@@ -427,7 +390,7 @@ const Analytics = () => {
                     <ResponsiveContainer width="100%" height={300}>
                       <RechartsLineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
+                        <XAxis dataKey="date" />
                         <YAxis />
                         <Tooltip />
                         <Legend />
@@ -459,7 +422,7 @@ const Analytics = () => {
                     <ResponsiveContainer width="100%" height={300}>
                       <RechartsLineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
+                        <XAxis dataKey="date" />
                         <YAxis />
                         <Tooltip />
                         <Legend />
@@ -494,7 +457,7 @@ const Analytics = () => {
                   <ResponsiveContainer width="100%" height={400}>
                     <RechartsBarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="date" />
                       <YAxis />
                       <Tooltip />
                       <Legend />

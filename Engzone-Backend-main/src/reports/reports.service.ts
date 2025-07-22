@@ -107,11 +107,18 @@ export class ReportsService {
     return { message: 'Report deleted successfully' };
   }
 
-  async getReportsByPlantId(plantId: string): Promise<Report[]> {
+  async getReportsByPlantId(
+    plantId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<Report[]> {
     await this.plantsService.getPlantsOrThrow([plantId]);
     return this.reportsRepo.find({
       where: { plant: { id: plantId } },
       relations: ['plant', 'submitted_by', 'media'],
+      order: { created_at: 'DESC' },
+      ...(limit !== undefined ? { take: limit } : {}),
+      ...(offset !== undefined ? { skip: offset } : {}),
     });
   }
 
