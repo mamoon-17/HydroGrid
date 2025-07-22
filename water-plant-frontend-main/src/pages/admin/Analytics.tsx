@@ -215,9 +215,9 @@ const Analytics = () => {
       {/* Plant Selector */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
             <div className="space-y-2 w-full">
-              <label className="text-sm font-medium text-muted-foreground">Select Plant</label>
+                <label className="text-sm font-medium text-muted-foreground">Select Plant</label>
               <Select
                 value={selectedPlant}
                 onValueChange={(value) => handlePlantSelect(value)}
@@ -300,69 +300,80 @@ const Analytics = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div
-              className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent"
               ref={scrollAreaRef}
               onScroll={handleScroll}
-              style={{ WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}
+              style={{
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                maxWidth: '100%',
+                minHeight: '16px',
+                WebkitOverflowScrolling: 'touch',
+                position: 'relative',
+              }}
             >
-              <div style={{ minWidth: `${180 + visibleDates.length * 160}px` }}>
-                <Table style={{ minWidth: `${180 + visibleDates.length * 160}px` }}>
-                  <TableHeader>
-                    <TableRow className="border-b-2">
-                      <TableHead className="sticky left-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 min-w-[200px] font-semibold">
-                        Parameter
-                      </TableHead>
-                      {visibleDates.map((dateTime) => {
-                        const date = new Date(dateTime);
+              <table style={{ minWidth: '2000px', tableLayout: 'fixed', borderCollapse: 'separate' }}>
+                <thead>
+                  <tr className="border-b-2">
+                    <th style={{ minWidth: 200, position: 'sticky', left: 0, zIndex: 2, background: '#fff' }} className="font-semibold border-r">Parameter</th>
+                    {reports.map((report) => {
+                      const date = new Date(report.created_at);
                         return (
-                          <TableHead key={dateTime} className="text-center min-w-[140px] border-l">
-                            <div className="flex flex-col">
-                              <span className="font-semibold">{date.toLocaleDateString()}</span>
-                              <span className="text-xs text-muted-foreground">{date.toLocaleTimeString()}</span>
-                            </div>
-                          </TableHead>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parameterKeys.map((paramKey) => (
-                      <TableRow key={paramKey} className="hover:bg-muted/30">
-                        <TableCell className="sticky left-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 font-medium border-r">
+                        <th key={report.created_at} style={{ minWidth: 160 }} className="text-center border-l">
                           <div className="flex flex-col">
-                            <span className="font-semibold text-foreground">{parameterLabels[paramKey]}</span>
+                            <span className="font-semibold">{date.toLocaleDateString()}</span>
+                            <span className="text-xs text-muted-foreground">{date.toLocaleTimeString()}</span>
                           </div>
-                        </TableCell>
-                        {visibleDates.map((dateTime) => {
-                          const report = reports.find(r => r.created_at === dateTime);
-                          return (
-                            <TableCell key={dateTime} className="text-center border-l relative group">
-                              {report && report[paramKey] !== undefined ? (
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {parameterKeys.map((paramKey) => (
+                    <tr key={paramKey} className="hover:bg-muted/30">
+                      <td style={{ minWidth: 200, position: 'sticky', left: 0, zIndex: 2, background: '#fff' }} className="font-medium border-r">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-foreground">{parameterLabels[paramKey]}</span>
+                        </div>
+                      </td>
+                      {reports.map((report) => (
+                        <td key={report.created_at} style={{ minWidth: 160 }} className="text-center border-l relative group">
+                          {report && report[paramKey] !== undefined ? (
                                 <div className="flex flex-col items-center space-y-1">
                                   <span className="font-semibold text-foreground">
-                                    {report[paramKey]}
+                                {report[paramKey]}
                                   </span>
-                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 bg-popover border rounded-md p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap">
-                                    <div>Reported by: {report.submitted_by?.name || 'Unknown'}</div>
-                                  </div>
+                              {report.submitted_by && (
+                                <div
+                                  className="absolute left-1/2 -translate-x-1/2 bg-popover border rounded-md p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap pointer-events-none shadow-lg"
+                                  style={{
+                                    bottom: '-2.5rem',
+                                    top: 'auto',
+                                    marginTop: 0,
+                                    marginBottom: 0,
+                                    // If this is the last row, show above
+                                    ...(paramKey === parameterKeys[parameterKeys.length - 1]
+                                      ? { bottom: 'auto', top: '-2.5rem' }
+                                      : {}),
+                                  }}
+                                >
+                                  <div>Reported by: {report.submitted_by.name || 'Unknown'}</div>
+                                </div>
+                              )}
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground text-sm">—</span>
                               )}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {isFetchingMore && (
-                  <div className="text-center py-2 text-muted-foreground">Loading more reports...</div>
-                )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {isFetchingMore && (
+                <div className="text-center py-2 text-muted-foreground">Loading more reports...</div>
+              )}
               </div>
-              {/* Always show horizontal scrollbar if overflow */}
-              <div style={{ height: 8 }} />
-            </div>
           </CardContent>
         </Card>
       ) : (

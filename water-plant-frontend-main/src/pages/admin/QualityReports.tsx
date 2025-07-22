@@ -89,6 +89,7 @@ const QualityReports = () => {
   const [tehsilFilter, setTehsilFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => {
     fetchReports();
@@ -184,7 +185,8 @@ const QualityReports = () => {
 
   // Helper function to format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ', ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
   };
 
   // Get unique employees and tehsils for filters
@@ -196,7 +198,7 @@ const QualityReports = () => {
   ];
 
   // Filter reports
-  const filteredReports = reports.filter((report) => {
+  let filteredReports = reports.filter((report) => {
     const matchesSearch =
       report.plant.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.submitted_by.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -208,6 +210,11 @@ const QualityReports = () => {
       statusFilter === "all" || getReportStatus(report) === statusFilter;
 
     return matchesSearch && matchesEmployee && matchesTehsil && matchesStatus;
+  });
+  filteredReports = filteredReports.sort((a, b) => {
+    const dateA = new Date(a.created_at).getTime();
+    const dateB = new Date(b.created_at).getTime();
+    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
   });
 
   // Calculate statistics
@@ -252,7 +259,7 @@ const QualityReports = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
@@ -271,18 +278,6 @@ const QualityReports = () => {
           <CardContent>
             <div className="text-2xl font-bold text-success">
               {stats.completeReports}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Issues Found</CardTitle>
-            <div className="w-3 h-3 bg-danger rounded-full"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-danger">
-              {stats.issuesReports}
             </div>
           </CardContent>
         </Card>
@@ -309,7 +304,7 @@ const QualityReports = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Search</label>
               <Input
@@ -367,6 +362,18 @@ const QualityReports = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sort By Date</label>
+              <Select value={sortOrder} onValueChange={v => setSortOrder(v as 'desc' | 'asc')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Latest to Oldest</SelectItem>
+                  <SelectItem value="asc">Oldest to Latest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -393,10 +400,6 @@ const QualityReports = () => {
                   <TableHead>Employee</TableHead>
                   <TableHead>Tehsil</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>TDS Values</TableHead>
-                  <TableHead>pH</TableHead>
-                  <TableHead>Flow Rate</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -421,19 +424,6 @@ const QualityReports = () => {
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         {formatDate(report.created_at)}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs space-y-1">
-                        <div>Raw: {report.raw_water_tds}</div>
-                        <div>Product: {report.product_water_tds}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{report.product_water_ph}</TableCell>
-                    <TableCell>{report.product_water_flow} LPH</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(getReportStatus(report))}>
-                        {getReportStatus(report)}
-                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -464,15 +454,13 @@ const QualityReports = () => {
                                       Location: {selectedReport.plant.address}
                                     </div>
                                     <div>
-                                      Employee:{" "}
-                                      {selectedReport.submitted_by.name}
+                                      Employee: {selectedReport.submitted_by.name}
                                     </div>
                                     <div>
                                       Tehsil: {selectedReport.plant.tehsil}
                                     </div>
                                     <div>
-                                      Date:{" "}
-                                      {formatDate(selectedReport.created_at)}
+                                      Date: {formatDate(selectedReport.created_at)}
                                     </div>
                                   </div>
                                 </div>
@@ -480,24 +468,19 @@ const QualityReports = () => {
                                   <strong>Quality Measurements</strong>
                                   <div className="text-sm space-y-1">
                                     <div>
-                                      Raw TDS: {selectedReport.raw_water_tds}{" "}
-                                      ppm
+                                      Raw TDS: {selectedReport.raw_water_tds} ppm
                                     </div>
                                     <div>
-                                      Permeate TDS:{" "}
-                                      {selectedReport.permeate_water_tds} ppm
+                                      Permeate TDS: {selectedReport.permeate_water_tds} ppm
                                     </div>
                                     <div>
-                                      Product TDS:{" "}
-                                      {selectedReport.product_water_tds} ppm
+                                      Product TDS: {selectedReport.product_water_tds} ppm
                                     </div>
                                     <div>
-                                      Product pH:{" "}
-                                      {selectedReport.product_water_ph}
+                                      Product pH: {selectedReport.product_water_ph}
                                     </div>
                                     <div>
-                                      Flow Rate:{" "}
-                                      {selectedReport.product_water_flow} LPH
+                                      Flow Rate: {selectedReport.product_water_flow} LPH
                                     </div>
                                   </div>
                                 </div>
@@ -505,20 +488,16 @@ const QualityReports = () => {
                                   <strong>Maintenance Status</strong>
                                   <div className="text-sm space-y-1">
                                     <div>
-                                      Multimedia Backwash:{" "}
-                                      {selectedReport.multimedia_backwash}
+                                      Multimedia Backwash: {selectedReport.multimedia_backwash}
                                     </div>
                                     <div>
-                                      Carbon Backwash:{" "}
-                                      {selectedReport.carbon_backwash}
+                                      Carbon Backwash: {selectedReport.carbon_backwash}
                                     </div>
                                     <div>
-                                      Membrane Cleaning:{" "}
-                                      {selectedReport.membrane_cleaning}
+                                      Membrane Cleaning: {selectedReport.membrane_cleaning}
                                     </div>
                                     <div>
-                                      Arsenic Media Backwash:{" "}
-                                      {selectedReport.arsenic_media_backwash}
+                                      Arsenic Media Backwash: {selectedReport.arsenic_media_backwash}
                                     </div>
                                     <div>
                                       CIP: {selectedReport.cip ? "Yes" : "No"}
@@ -529,18 +508,13 @@ const QualityReports = () => {
                                   <strong>Replacements</strong>
                                   <div className="text-sm space-y-1">
                                     <div>
-                                      Cartridge Filters:{" "}
-                                      {
-                                        selectedReport.cartridge_filter_replacement
-                                      }
+                                      Cartridge Filters: {selectedReport.cartridge_filter_replacement}
                                     </div>
                                     <div>
-                                      Membranes:{" "}
-                                      {selectedReport.membrane_replacement}
+                                      Membranes: {selectedReport.membrane_replacement}
                                     </div>
                                     <div>
-                                      Chemical Refill:{" "}
-                                      {selectedReport.chemical_refill_litres}L
+                                      Chemical Refill: {selectedReport.chemical_refill_litres}L
                                     </div>
                                   </div>
                                 </div>

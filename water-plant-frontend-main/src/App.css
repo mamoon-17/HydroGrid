@@ -40,3 +40,21 @@
 .read-the-docs {
   color: #888;
 }
+
+.analytics-scroll-x {
+  overflow-x: auto !important;
+  overflow-y: visible;
+  max-width: 100%;
+  scrollbar-color: #888 #e0e0e0;
+  scrollbar-width: auto;
+}
+.analytics-scroll-x::-webkit-scrollbar {
+  height: 12px;
+}
+.analytics-scroll-x::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+}
+.analytics-scroll-x::-webkit-scrollbar-track {
+  background: #e0e0e0;
+}

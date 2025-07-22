@@ -93,16 +93,16 @@ export class ReportsController {
   ) {
     try {
       const filePaths = (files ?? []).map(
-        (f) => `https://dummy-s3.com/uploads/${f.filename}`,
-      );
-      const userRole = req.user?.role;
+      (f) => `https://dummy-s3.com/uploads/${f.filename}`,
+    );
+    const userRole = req.user?.role;
       return await this.reportsService.updateReport(
-        id,
-        body,
-        filePaths,
-        body.mediaToRemove || [],
-        userRole,
-      );
+      id,
+      body,
+      filePaths,
+      body.mediaToRemove || [],
+      userRole,
+    );
     } catch (err) {
       console.error('Update report error:', err);
       throw new InternalServerErrorException(
