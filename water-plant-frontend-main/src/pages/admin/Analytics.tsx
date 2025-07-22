@@ -358,8 +358,8 @@ const Analytics = () => {
                                   }}
                                 >
                                   <div>Reported by: {report.submitted_by.name || 'Unknown'}</div>
-                                </div>
-                              )}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground text-sm">—</span>

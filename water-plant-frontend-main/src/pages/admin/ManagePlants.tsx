@@ -109,6 +109,7 @@ const ManagePlants = () => {
     getInitialFormData()
   );
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [viewPlant, setViewPlant] = useState<PlantDetail | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -578,7 +579,6 @@ const ManagePlants = () => {
                 <TableHead>Tehsil</TableHead>
                 <TableHead>Current Status</TableHead>
                 <TableHead>Last Report</TableHead>
-                <TableHead>Capacity (L)</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -599,9 +599,15 @@ const ManagePlants = () => {
                     <StatusBadge status={getPlantStatus(plant)} />
                   </TableCell>
                   <TableCell>{getLastReport(plant)}</TableCell>
-                  <TableCell>{plant.capacity.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewPlant(plant)}
+                      >
+                        View
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -624,6 +630,27 @@ const ManagePlants = () => {
           </Table>
         </CardContent>
       </Card>
+      {/* View Plant Dialog */}
+      <Dialog open={!!viewPlant} onOpenChange={() => setViewPlant(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Plant Details</DialogTitle>
+            <DialogDescription>Full details of the selected plant</DialogDescription>
+          </DialogHeader>
+          {viewPlant && (
+            <div className="space-y-2 text-sm">
+              <div><strong>Address:</strong> {viewPlant.address}</div>
+              <div><strong>Type:</strong> {viewPlant.type.toUpperCase()}</div>
+              <div><strong>Tehsil:</strong> {viewPlant.tehsil}</div>
+              <div><strong>Point:</strong> {(viewPlant.lat != null && viewPlant.lng != null) ? `${viewPlant.lat}, ${viewPlant.lng}` : 'N/A'}</div>
+              <div><strong>Assigned Employee:</strong> {viewPlant.employee?.name ?? 'Unassigned'}</div>
+              <div><strong>Created At:</strong> {viewPlant.created_at ? new Date(viewPlant.created_at).toLocaleString() : 'N/A'}</div>
+              <div><strong>Updated At:</strong> {viewPlant.updated_at ? new Date(viewPlant.updated_at).toLocaleString() : 'N/A'}</div>
+              <div><strong>Capacity:</strong> {viewPlant.capacity?.toLocaleString() ?? 'N/A'}</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       {/* Add Plant Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-md">
