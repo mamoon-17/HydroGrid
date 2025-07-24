@@ -237,19 +237,41 @@ const ManageEmployees = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (errorData.message) {
-          // Extract specific error messages
-          if (errorData.message.includes("username")) {
-            setSubmitError("Username is already taken");
-          } else if (errorData.message.includes("email")) {
-            setSubmitError("Email is already registered");
-          } else if (errorData.message.includes("phone")) {
-            setSubmitError("Phone number is already registered");
-          } else {
-            setSubmitError(errorData.message);
-          }
+        console.log("BACKEND ERROR DATA:", errorData);
+
+        // Handle Zod errors at the top level
+        if (errorData.fieldErrors || errorData.formErrors) {
+          const fieldMsgs = errorData.fieldErrors
+            ? Object.values(errorData.fieldErrors).flat().filter(Boolean)
+            : [];
+          const formMsgs = errorData.formErrors || [];
+          let errorMsg = [...fieldMsgs, ...formMsgs].join('; ');
+
+          // Map technical Zod messages to user-friendly ones
+          const friendlyMap = {
+            "Too small: expected string to have >=3 characters": "Username must be at least 3 characters",
+            "Too small: expected string to have >=6 characters": "Password must be at least 6 characters",
+          };
+          const friendlyMsg = errorMsg
+            .split('; ')
+            .map(msg => friendlyMap[msg] || msg)
+            .join('; ');
+
+          setSubmitError(friendlyMsg || "Invalid input. Please check your data.");
+          throw new Error(friendlyMsg || "Invalid input. Please check your data.");
+        }
+
+        // Fallback for string or array messages
+        if (typeof errorData.message === "string") {
+          setSubmitError(errorData.message);
           throw new Error(errorData.message);
         }
+        if (Array.isArray(errorData.message)) {
+          setSubmitError(errorData.message.join("; "));
+          throw new Error(errorData.message.join("; "));
+        }
+
+        setSubmitError("Something went wrong");
         throw new Error("Something went wrong");
       }
 
