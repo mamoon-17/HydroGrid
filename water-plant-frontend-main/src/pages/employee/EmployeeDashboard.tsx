@@ -21,6 +21,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface Plant {
   id: string;
   address: string;
@@ -72,15 +74,12 @@ const EmployeeDashboard = () => {
       setLoading(true);
 
       // Fetch assigned plants for the current user
-      const plantsResponse = await fetch(
-        "http://localhost:3000/plants/assigned",
-        {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const plantsResponse = await fetch(`${BASE_URL}/plants/assigned`, {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!plantsResponse.ok) {
         throw new Error(
@@ -94,7 +93,7 @@ const EmployeeDashboard = () => {
 
       // Fetch reports submitted by current user
       const reportsResponse = await fetch(
-        `http://localhost:3000/reports/user/${user?.id}`,
+        `${BASE_URL}/reports/user/${user?.id}`,
         {
           credentials: "include",
           headers: {

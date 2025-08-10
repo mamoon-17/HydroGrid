@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface Plant {
   id: string;
   address: string;
@@ -72,13 +74,13 @@ const AdminDashboard = () => {
 
       // Fetch plants and users in parallel
       const [plantsResponse, usersResponse] = await Promise.all([
-        fetch("http://localhost:3000/plants", {
+        fetch(`${BASE_URL}/plants`, {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
         }),
-        fetch("http://localhost:3000/users", {
+        fetch(`${BASE_URL}/users`, {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",

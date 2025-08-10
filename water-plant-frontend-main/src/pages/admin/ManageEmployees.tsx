@@ -28,6 +28,8 @@ import {
 import { Plus, Edit, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface Employee {
   id: string;
   name: string;
@@ -76,7 +78,7 @@ const ManageEmployees = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/users", {
+      const res = await fetch(`${BASE_URL}/users`, {
         credentials: "include",
       });
 
@@ -201,17 +203,14 @@ const ManageEmployees = () => {
       }
 
       if (editingEmployee) {
-        response = await fetch(
-          `http://localhost:3000/users/${editingEmployee.id}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(payload),
-          }
-        );
+        response = await fetch(`${BASE_URL}/users/${editingEmployee.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
       } else {
         if (!formData.phone) {
           toast.error("Phone number is required for new users");
@@ -221,7 +220,7 @@ const ManageEmployees = () => {
           toast.error("Country code is required for new users");
           return;
         }
-        response = await fetch("http://localhost:3000/users", {
+        response = await fetch(`${BASE_URL}/users`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -245,20 +244,26 @@ const ManageEmployees = () => {
             ? Object.values(errorData.fieldErrors).flat().filter(Boolean)
             : [];
           const formMsgs = errorData.formErrors || [];
-          let errorMsg = [...fieldMsgs, ...formMsgs].join('; ');
+          let errorMsg = [...fieldMsgs, ...formMsgs].join("; ");
 
           // Map technical Zod messages to user-friendly ones
           const friendlyMap = {
-            "Too small: expected string to have >=3 characters": "Username must be at least 3 characters",
-            "Too small: expected string to have >=6 characters": "Password must be at least 6 characters",
+            "Too small: expected string to have >=3 characters":
+              "Username must be at least 3 characters",
+            "Too small: expected string to have >=6 characters":
+              "Password must be at least 6 characters",
           };
           const friendlyMsg = errorMsg
-            .split('; ')
-            .map(msg => friendlyMap[msg] || msg)
-            .join('; ');
+            .split("; ")
+            .map((msg) => friendlyMap[msg] || msg)
+            .join("; ");
 
-          setSubmitError(friendlyMsg || "Invalid input. Please check your data.");
-          throw new Error(friendlyMsg || "Invalid input. Please check your data.");
+          setSubmitError(
+            friendlyMsg || "Invalid input. Please check your data."
+          );
+          throw new Error(
+            friendlyMsg || "Invalid input. Please check your data."
+          );
         }
 
         // Fallback for string or array messages
@@ -307,7 +312,7 @@ const ManageEmployees = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:3000/users/${id}`, {
+      const res = await fetch(`${BASE_URL}/users/${id}`, {
         method: "DELETE",
         credentials: "include",
       });

@@ -47,6 +47,8 @@ import {
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 // 1. Add Employee type
 interface Employee {
   id: string;
@@ -124,7 +126,7 @@ const ManagePlants = () => {
   const fetchPlants = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/plants", {
+      const res = await fetch(`${BASE_URL}/plants`, {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
@@ -155,7 +157,7 @@ const ManagePlants = () => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch("http://localhost:3000/users", {
+      const res = await fetch(`${BASE_URL}/users`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch employees");
@@ -191,19 +193,16 @@ const ManagePlants = () => {
       }
 
       if (addFormData.id) {
-        response = await fetch(
-          `http://localhost:3000/plants/${addFormData.id}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(payload),
-          }
-        );
+        response = await fetch(`${BASE_URL}/plants/${addFormData.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
       } else {
-        response = await fetch("http://localhost:3000/plants", {
+        response = await fetch(`${BASE_URL}/plants`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -241,7 +240,7 @@ const ManagePlants = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:3000/plants/${id}`, {
+      const res = await fetch(`${BASE_URL}/plants/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -358,7 +357,7 @@ const ManagePlants = () => {
       if (addFormData.lng !== undefined) payload.lng = addFormData.lng;
       if (addFormData.employeeId === "none") payload.userId = null;
       else if (addFormData.employeeId) payload.userId = addFormData.employeeId;
-      response = await fetch("http://localhost:3000/plants", {
+      response = await fetch(`${BASE_URL}/plants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -396,15 +395,12 @@ const ManagePlants = () => {
       if (editFormData.employeeId === "none") payload.userId = null;
       else if (editFormData.employeeId)
         payload.userId = editFormData.employeeId;
-      response = await fetch(
-        `http://localhost:3000/plants/${editFormData.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        }
-      );
+      response = await fetch(`${BASE_URL}/plants/${editFormData.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Something went wrong");
@@ -635,18 +631,47 @@ const ManagePlants = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Plant Details</DialogTitle>
-            <DialogDescription>Full details of the selected plant</DialogDescription>
+            <DialogDescription>
+              Full details of the selected plant
+            </DialogDescription>
           </DialogHeader>
           {viewPlant && (
             <div className="space-y-2 text-sm">
-              <div><strong>Address:</strong> {viewPlant.address}</div>
-              <div><strong>Type:</strong> {viewPlant.type.toUpperCase()}</div>
-              <div><strong>Tehsil:</strong> {viewPlant.tehsil}</div>
-              <div><strong>Point:</strong> {(viewPlant.lat != null && viewPlant.lng != null) ? `${viewPlant.lat}, ${viewPlant.lng}` : 'N/A'}</div>
-              <div><strong>Assigned Employee:</strong> {viewPlant.employee?.name ?? 'Unassigned'}</div>
-              <div><strong>Created At:</strong> {viewPlant.created_at ? new Date(viewPlant.created_at).toLocaleString() : 'N/A'}</div>
-              <div><strong>Updated At:</strong> {viewPlant.updated_at ? new Date(viewPlant.updated_at).toLocaleString() : 'N/A'}</div>
-              <div><strong>Capacity:</strong> {viewPlant.capacity?.toLocaleString() ?? 'N/A'}</div>
+              <div>
+                <strong>Address:</strong> {viewPlant.address}
+              </div>
+              <div>
+                <strong>Type:</strong> {viewPlant.type.toUpperCase()}
+              </div>
+              <div>
+                <strong>Tehsil:</strong> {viewPlant.tehsil}
+              </div>
+              <div>
+                <strong>Point:</strong>{" "}
+                {viewPlant.lat != null && viewPlant.lng != null
+                  ? `${viewPlant.lat}, ${viewPlant.lng}`
+                  : "N/A"}
+              </div>
+              <div>
+                <strong>Assigned Employee:</strong>{" "}
+                {viewPlant.employee?.name ?? "Unassigned"}
+              </div>
+              <div>
+                <strong>Created At:</strong>{" "}
+                {viewPlant.created_at
+                  ? new Date(viewPlant.created_at).toLocaleString()
+                  : "N/A"}
+              </div>
+              <div>
+                <strong>Updated At:</strong>{" "}
+                {viewPlant.updated_at
+                  ? new Date(viewPlant.updated_at).toLocaleString()
+                  : "N/A"}
+              </div>
+              <div>
+                <strong>Capacity:</strong>{" "}
+                {viewPlant.capacity?.toLocaleString() ?? "N/A"}
+              </div>
             </div>
           )}
         </DialogContent>
