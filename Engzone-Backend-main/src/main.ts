@@ -5,8 +5,13 @@ import * as cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins =
+    process.env.NODE_ENV === 'production'
+      ? ['https://engzone.site', 'https://www.engzone.site']
+      : ['http://localhost:8080'];
+
   app.enableCors({
-    origin: '*', // frontend dev server
+    origin: allowedOrigins,
     credentials: true, // allow cookies (for auth/session)
   });
 
