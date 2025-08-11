@@ -15,9 +15,15 @@ async function bootstrap() {
     'http://127.0.0.1:3000',
   ];
 
+  // Optional comma-separated list of extra allowed origins via env
+  const extraAllowedOriginsEnv = process.env.CORS_EXTRA_ORIGINS || '';
+  const extraAllowedOrigins = extraAllowedOriginsEnv
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const originValidator = (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) {
-      // Allow non-browser requests or same-origin
       return callback(null, true);
     }
 
@@ -25,9 +31,16 @@ async function bootstrap() {
       return callback(null, true);
     }
 
+    if (extraAllowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
     // Allow https://engzone.site, https://www.engzone.site, and any https subdomain of engzone.site
     const engzoneRegex = /^https:\/\/(?:[a-z0-9-]+\.)*engzone\.site$/i;
-    if (engzoneRegex.test(origin)) {
+    // Allow Amplify preview/prod app domains like https://*.amplifyapp.com
+    const amplifyRegex = /^https:\/\/(?:[a-z0-9-]+\.)*amplifyapp\.com$/i;
+
+    if (engzoneRegex.test(origin) || amplifyRegex.test(origin)) {
       return callback(null, true);
     }
 
@@ -37,6 +50,8 @@ async function bootstrap() {
   app.enableCors({
     origin: originValidator,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.use(cookieParser());
