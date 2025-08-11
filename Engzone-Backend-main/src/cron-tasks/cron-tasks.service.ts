@@ -16,15 +16,17 @@ export class CronTasksService {
 
   onModuleInit() {
     // Read and trim the cron expression from env var
-    const rawCronExpr = process.env.REFRESH_CLEANUP_CRON || '0 0 * * *';
-    const cronExpr = rawCronExpr.trim();
+    let rawCronExpr = process.env.REFRESH_CLEANUP_CRON || '0 0 * * *';
+
+    // Strip surrounding quotes if any
+    rawCronExpr = rawCronExpr.trim().replace(/^['"]|['"]$/g, '');
 
     Logger.log(
-      `Registering cron job with expression: '${cronExpr}'`,
+      `Registering cron job with expression: '${rawCronExpr}'`,
       'CronTasksService',
     );
 
-    const job = new CronJob(cronExpr, async () => {
+    const job = new CronJob(rawCronExpr, async () => {
       const now = new Date();
       const deleted = await this.refreshTokenRepo.delete({
         expires_at: LessThan(now),
