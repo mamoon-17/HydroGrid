@@ -48,19 +48,24 @@ export class AuthService {
 
     await this.tokensRepo.save(tokenEntity);
 
-    const isProd = process.env.NODE_ENV === 'production';
+    // Force cross-site cookie compatibility for browser: SameSite=None and Secure
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.engzone.site';
 
     res.cookie('token', accessToken, {
       httpOnly: true,
-      sameSite: isProd ? 'none' : 'lax',
-      secure: isProd,
+      sameSite: 'none',
+      secure: true,
+      domain: cookieDomain,
+      path: '/',
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      sameSite: isProd ? 'none' : 'lax',
-      secure: isProd,
+      sameSite: 'none',
+      secure: true,
+      domain: cookieDomain,
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -122,19 +127,24 @@ export class AuthService {
 
     await this.tokensRepo.save(newEntity);
 
-    const isProd = process.env.NODE_ENV === 'production';
+    // Force cross-site cookie compatibility for browser: SameSite=None and Secure
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.engzone.site';
 
     res.cookie('token', newAccessToken, {
       httpOnly: true,
-      sameSite: isProd ? 'none' : 'lax',
-      secure: isProd,
+      sameSite: 'none',
+      secure: true,
+      domain: cookieDomain,
+      path: '/',
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      sameSite: isProd ? 'none' : 'lax',
-      secure: isProd,
+      sameSite: 'none',
+      secure: true,
+      domain: cookieDomain,
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

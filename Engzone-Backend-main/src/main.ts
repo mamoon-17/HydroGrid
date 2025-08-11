@@ -5,14 +5,38 @@ import * as cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const allowedOrigins =
-    process.env.NODE_ENV === 'production'
-      ? ['https://engzone.site', 'https://www.engzone.site']
-      : ['http://localhost:8080'];
+  const isProd = process.env.NODE_ENV === 'production';
+
+  const allowedDevOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ];
+
+  const originValidator = (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin) {
+      // Allow non-browser requests or same-origin
+      return callback(null, true);
+    }
+
+    if (!isProd && allowedDevOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow https://engzone.site, https://www.engzone.site, and any https subdomain of engzone.site
+    const engzoneRegex = /^https:\/\/(?:[a-z0-9-]+\.)*engzone\.site$/i;
+    if (engzoneRegex.test(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('CORS: Origin not allowed'));
+  };
 
   app.enableCors({
-    origin: allowedOrigins,
-    credentials: true, // allow cookies (for auth/session)
+    origin: originValidator,
+    credentials: true,
   });
 
   app.use(cookieParser());
