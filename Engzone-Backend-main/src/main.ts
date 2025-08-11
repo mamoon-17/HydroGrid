@@ -22,7 +22,10 @@ async function bootstrap() {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const originValidator = (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+  const originValidator = (
+    origin: string,
+    callback: (err: Error | null, allow?: boolean) => void,
+  ) => {
     if (!origin) {
       return callback(null, true);
     }

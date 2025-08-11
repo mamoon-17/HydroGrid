@@ -1,5 +1,6 @@
 //check for
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -21,7 +22,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { ClipboardList, Save, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
-import { apiFetch } from '../../lib/api';
+import { apiFetch } from "../../lib/api";
 
 interface Plant {
   id: string;
@@ -74,6 +75,7 @@ interface ReportFormData {
 
 const FillReport = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [assignedPlants, setAssignedPlants] = useState<Plant[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -139,8 +141,18 @@ const FillReport = () => {
   const fetchAssignedPlants = async () => {
     try {
       setLoading(true);
-      const plants = await apiFetch('/plants/assigned');
+      const plants = await apiFetch("/plants/assigned");
       setAssignedPlants(plants);
+      // Auto-select logic: URL param plantId > first assigned plant
+      const plantIdFromUrl = searchParams.get("plantId");
+      const validPlantIds = new Set(plants.map((p: Plant) => p.id));
+      const initialPlantId =
+        plantIdFromUrl && validPlantIds.has(plantIdFromUrl)
+          ? plantIdFromUrl
+          : plants[0]?.id || "";
+      if (initialPlantId && formData.plantId === "") {
+        setFormData((prev) => ({ ...prev, plantId: initialPlantId }));
+      }
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to load assigned plants"
@@ -311,13 +323,19 @@ const FillReport = () => {
         arsenic_media_backwash: formData.arsenic_media_backwash,
         cip: formData.cip,
         chemical_refill_litres: parseFloat(formData.chemical_refill_litres),
-        cartridge_filter_replacement: Math.max(0, Math.min(2, parseFloat(formData.cartridge_filter_replacement))),
-        membrane_replacement: Math.max(0, Math.min(8, parseFloat(formData.membrane_replacement))),
+        cartridge_filter_replacement: Math.max(
+          0,
+          Math.min(2, parseFloat(formData.cartridge_filter_replacement))
+        ),
+        membrane_replacement: Math.max(
+          0,
+          Math.min(8, parseFloat(formData.membrane_replacement))
+        ),
         notes: formData.notes || "",
       };
 
-      await apiFetch('/reports', {
-        method: 'POST',
+      await apiFetch("/reports", {
+        method: "POST",
         body: JSON.stringify(reportData),
       });
 
@@ -871,13 +889,13 @@ const FillReport = () => {
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3 sm:gap-4 pb-8 mb-4">
             <Button
               type="button"
               variant="outline"
               onClick={handleSaveDraft}
               disabled={isSaving || isSubmitting}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <Save className="h-4 w-4" />
               {isSaving ? "Saving..." : "Save Draft"}
@@ -890,14 +908,14 @@ const FillReport = () => {
                 toast.success("Draft cleared");
               }}
               disabled={isSaving || isSubmitting}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               Clear Draft
             </Button>
             <Button
               type="submit"
               disabled={isSaving || isSubmitting}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <Send className="h-4 w-4" />
               {isSubmitting ? "Submitting..." : "Submit Report"}

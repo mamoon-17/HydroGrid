@@ -14,13 +14,24 @@ import {
   Home,
 } from "lucide-react";
 
-export const Sidebar = () => {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export const Sidebar = ({ onClose }: SidebarProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleNavClick = () => {
+    // Close mobile sidebar when nav item is clicked
+    if (onClose) {
+      onClose();
+    }
   };
 
   const adminNavItems = [
@@ -40,13 +51,15 @@ export const Sidebar = () => {
   const navItems = user?.role === "admin" ? adminNavItems : userNavItems;
 
   return (
-    <div className="w-64 bg-card border-r shadow-lg flex flex-col">
-      <div className="p-6 border-b">
-        <h1 className="text-xl font-bold text-primary">RO/UF Plant Manager</h1>
+    <div className="w-full h-full bg-card border-r shadow-lg flex flex-col">
+      <div className="p-4 md:p-6 border-b">
+        <h1 className="text-lg md:text-xl font-bold text-primary">
+          RO/UF Plant Manager
+        </h1>
         <div className="mt-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4" />
-            <span>{user?.name}</span>
+            <span className="truncate">{user?.name}</span>
           </div>
           <div className="text-xs mt-1 capitalize bg-primary/10 text-primary px-2 py-1 rounded">
             {user?.role}
@@ -54,34 +67,35 @@ export const Sidebar = () => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+      <nav className="flex-1 p-3 md:p-4">
+        <ul className="space-y-1 md:space-y-2">
           {navItems.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
                 end={item.to.endsWith("/admin") || item.to.endsWith("/user")}
+                onClick={handleNavClick}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  `flex items-center gap-3 px-3 py-2 md:py-2.5 rounded-lg transition-colors text-sm md:text-base ${
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`
                 }
               >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
 
-      <div className="p-4 border-t">
+      <div className="p-3 md:p-4 border-t">
         <Button
           onClick={handleLogout}
           variant="outline"
-          className="w-full flex items-center gap-2"
+          className="w-full flex items-center gap-2 text-sm md:text-base"
         >
           <LogOut className="h-4 w-4" />
           Logout

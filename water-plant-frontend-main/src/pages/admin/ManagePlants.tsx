@@ -162,7 +162,12 @@ const ManagePlants = () => {
       });
       if (!res.ok) throw new Error("Failed to fetch employees");
       const data = await res.json();
-      setEmployees(data);
+      // Only keep users with employee role
+      setEmployees(
+        Array.isArray(data)
+          ? data.filter((u: Employee) => u.role === "user")
+          : []
+      );
     } catch (err) {
       toast.error("Failed to load employees");
     }
@@ -311,7 +316,7 @@ const ManagePlants = () => {
   };
 
   const uniqueTehsils = [...new Set(plants.map((plant) => plant.tehsil))];
-  const allEmployees = employees;
+  const allEmployees = employees; // already filtered to role === 'user'
 
   const filteredPlants = plants.filter((plant) => {
     const search = searchTerm.toLowerCase();

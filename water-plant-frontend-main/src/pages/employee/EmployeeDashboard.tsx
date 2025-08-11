@@ -180,19 +180,19 @@ const EmployeeDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
             Welcome back, {user?.name}!
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
             Here's an overview of your assigned plants and recent activity
           </p>
         </div>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="md:col-span-1 lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -201,7 +201,7 @@ const EmployeeDashboard = () => {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
+            <div className="text-xl md:text-2xl font-bold text-primary">
               {assignedPlants.length}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -218,7 +218,7 @@ const EmployeeDashboard = () => {
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">
+            <div className="text-xl md:text-2xl font-bold text-success">
               {reports.length}
             </div>
             <p className="text-xs text-muted-foreground">Submitted reports</p>
@@ -227,18 +227,20 @@ const EmployeeDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <ClipboardList className="h-5 w-5" />
               Quick Actions
             </CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
+            <CardDescription className="text-sm">
+              Common tasks and shortcuts
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Link to="/user/fill-report">
-              <Button className="w-full justify-start" size="lg">
+              <Button className="w-full justify-start text-base" size="lg">
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Fill Out New Report
               </Button>
@@ -246,7 +248,7 @@ const EmployeeDashboard = () => {
             <Link to="/user/work-history">
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                className="w-full justify-start text-base"
                 size="lg"
               >
                 <History className="h-4 w-4 mr-2" />
@@ -258,29 +260,31 @@ const EmployeeDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <History className="h-5 w-5" />
               Recent Activity
             </CardTitle>
-            <CardDescription>Your latest actions and updates</CardDescription>
+            <CardDescription className="text-sm">
+              Your latest actions and updates
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {recentActivity.length === 0 ? (
               <div className="text-center py-4 text-muted-foreground">
-                <p>No recent activity</p>
-                <p className="text-sm">Start by submitting your first report</p>
+                <p className="text-sm">No recent activity</p>
+                <p className="text-xs">Start by submitting your first report</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {recentActivity.map((activity) => (
                   <div
                     key={activity.id}
-                    className="flex items-start gap-3 p-2 rounded-lg border"
+                    className="flex items-start gap-3 p-3 rounded-lg border"
                   >
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                    <div className="flex-1">
+                    <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {activity.plant}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -298,11 +302,11 @@ const EmployeeDashboard = () => {
       {/* Assigned Plants */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Database className="h-5 w-5" />
             Your Assigned Plants
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             Plants under your maintenance responsibility
           </CardDescription>
         </CardHeader>
@@ -310,23 +314,23 @@ const EmployeeDashboard = () => {
           {assignedPlants.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p>No plants assigned to you yet.</p>
-              <p className="text-sm">
+              <p className="text-sm">No plants assigned to you yet.</p>
+              <p className="text-xs">
                 Contact your administrator to get assigned to plants.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {assignedPlants.map((plant) => {
                 const daysAgo = getDaysAgo(plant);
 
                 return (
-                  <Card key={plant.id}>
+                  <Card key={plant.id} className="overflow-hidden">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <CardTitle className="text-sm">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <CardTitle className="text-sm truncate">
                             {plant.address}
                           </CardTitle>
                         </div>
@@ -367,8 +371,8 @@ const EmployeeDashboard = () => {
                       </div>
 
                       <div className="mt-3">
-                        <Link to="/user/fill-report">
-                          <Button size="sm" className="w-full">
+                        <Link to={`/user/fill-report?plantId=${plant.id}`}>
+                          <Button size="sm" className="w-full text-xs">
                             Submit Report
                           </Button>
                         </Link>
@@ -381,6 +385,23 @@ const EmployeeDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Mobile Floating Submit Report Button */}
+      {assignedPlants.length > 0 && (
+        <Link
+          to={`/user/fill-report?plantId=${assignedPlants[0].id}`}
+          className="md:hidden"
+        >
+          <Button
+            size="icon"
+            className="fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg"
+            aria-label="Submit Report"
+            title="Submit Report"
+          >
+            <ClipboardList className="h-5 w-5" />
+          </Button>
+        </Link>
+      )}
     </div>
   );
 };

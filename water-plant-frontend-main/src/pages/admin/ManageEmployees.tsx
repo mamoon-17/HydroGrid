@@ -89,7 +89,7 @@ const ManageEmployees = () => {
       }
 
       const data = await res.json();
-      setEmployees(data);
+      setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load employees", err);
       toast.error("Failed to load employees");
