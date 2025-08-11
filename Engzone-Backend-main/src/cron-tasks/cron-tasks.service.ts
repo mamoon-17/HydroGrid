@@ -2,12 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshToken } from 'src/refresh_tokens/refresh_tokens.entity';
 import { Repository, LessThan } from 'typeorm';
-import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { Logger } from '@nestjs/common';
 import { CronJob } from 'cron';
-
-const CRON_EXPR =
-  process.env.REFRESH_CLEANUP_CRON || CronExpression.EVERY_DAY_AT_MIDNIGHT;
 
 @Injectable()
 export class CronTasksService {
@@ -18,9 +15,12 @@ export class CronTasksService {
   ) {}
 
   onModuleInit() {
-    const cronExpr = process.env.REFRESH_CLEANUP_CRON || '0 0 * * *';
+    // Read and trim the cron expression from env var
+    const rawCronExpr = process.env.REFRESH_CLEANUP_CRON || '0 0 * * *';
+    const cronExpr = rawCronExpr.trim();
+
     Logger.log(
-      `Registering cron job with expression: ${cronExpr}`,
+      `Registering cron job with expression: '${cronExpr}'`,
       'CronTasksService',
     );
 
