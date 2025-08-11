@@ -52,14 +52,14 @@ export class AuthService {
 
     res.cookie('token', accessToken, {
       httpOnly: true,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       secure: isProd,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       secure: isProd,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -126,14 +126,14 @@ export class AuthService {
 
     res.cookie('token', newAccessToken, {
       httpOnly: true,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       secure: isProd,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       secure: isProd,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
