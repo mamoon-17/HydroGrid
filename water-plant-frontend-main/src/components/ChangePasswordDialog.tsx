@@ -85,21 +85,38 @@ export const ChangePasswordDialog = ({
   const handleConfirmChange = async () => {
     setLoading(true);
     try {
+      const requestBody = {
+        oldPassword: formData.oldPassword,
+        newPassword: formData.newPassword,
+      };
+
       const response = await fetch(`${BASE_URL}/users/change-password`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          oldPassword: formData.oldPassword,
-          newPassword: formData.newPassword,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to change password");
+        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (parseError) {
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = `Server error: ${errorText}`;
+            }
+          } catch (textError) {
+            // Ignore text parsing errors
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       toast.success("Password changed successfully!");
@@ -159,13 +176,17 @@ export const ChangePasswordDialog = ({
             <Key className="h-5 w-5" />
             Change Password
           </DialogTitle>
-          <DialogDescription>
-            Enter your current password and choose a new one. Make sure to
-            remember your new password.
-            <div className="mt-2 text-xs text-muted-foreground">
-              <p>• Use a strong, unique password</p>
-              <p>• Avoid common words or personal information</p>
-              <p>• Consider using a mix of letters, numbers, and symbols</p>
+          <DialogDescription asChild>
+            <div>
+              <p>
+                Enter your current password and choose a new one. Make sure to
+                remember your new password.
+              </p>
+              <div className="mt-2 text-xs text-muted-foreground">
+                <p>• Use a strong, unique password</p>
+                <p>• Avoid common words or personal information</p>
+                <p>• Consider using a mix of letters, numbers, and symbols</p>
+              </div>
             </div>
           </DialogDescription>
         </DialogHeader>
@@ -332,9 +353,12 @@ export const ChangePasswordDialog = ({
         {showConfirmation && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-background p-6 rounded-lg border max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-4">Confirm Password Change</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                Confirm Password Change
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Are you sure you want to change your password? You will need to use your new password for future logins.
+                Are you sure you want to change your password? You will need to
+                use your new password for future logins.
               </p>
               <div className="flex gap-2 justify-end">
                 <Button

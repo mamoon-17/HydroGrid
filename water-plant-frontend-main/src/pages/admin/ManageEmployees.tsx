@@ -359,6 +359,9 @@ const ManageEmployees = () => {
           <p className="text-muted-foreground mt-1">
             Add, edit, and manage employee accounts
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Note: Admin accounts are protected and cannot be deleted
+          </p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -574,7 +577,16 @@ const ManageEmployees = () => {
                         }${employee.phone}`
                       : employee.phone}
                   </TableCell>
-                  <TableCell>{employee.role}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="capitalize">{employee.role}</span>
+                      {employee.role === "admin" && (
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                          Protected
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
@@ -589,8 +601,18 @@ const ManageEmployees = () => {
                         size="sm"
                         onClick={() => handleDelete(employee.id)}
                         className="text-danger hover:text-danger"
+                        disabled={employee.role === "admin"}
+                        title={
+                          employee.role === "admin"
+                            ? "Admins cannot delete other admin accounts"
+                            : "Delete employee"
+                        }
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2
+                          className={`h-4 w-4 ${
+                            employee.role === "admin" ? "opacity-50" : ""
+                          }`}
+                        />
                       </Button>
                     </div>
                   </TableCell>
