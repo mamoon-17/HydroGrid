@@ -97,15 +97,26 @@ const QualityReports = () => {
     fetchReports();
   }, []);
 
+  // Debug: Log reports state changes
+  useEffect(() => {
+    console.log("🔄 Reports state updated:", reports);
+    console.log("🔄 Reports length:", reports.length);
+  }, [reports]);
+
   const fetchReports = async () => {
     try {
       setLoading(true);
+      console.log("🔍 Fetching reports from:", `${BASE_URL}/reports`);
+
       const res = await fetch(`${BASE_URL}/reports`, {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
       });
+
+      console.log("📡 Response status:", res.status);
+      console.log("📡 Response ok:", res.ok);
 
       if (!res.ok) {
         if (res.status === 403) {
@@ -115,9 +126,46 @@ const QualityReports = () => {
       }
 
       const data = await res.json();
-      setReports(data);
+      console.log("📊 Raw API response:", data);
+      console.log("📊 Number of reports received:", data.length);
+      console.log("📊 First report sample:", data[0]);
+      console.log(
+        "🔍 First report structure:",
+        JSON.stringify(data[0], null, 2)
+      );
+      console.log("🔍 First report submitted_by:", data[0]?.submitted_by);
+      console.log("🔍 First report plant:", data[0]?.plant);
+      console.log(
+        "🔍 First report submitted_by.name:",
+        data[0]?.submitted_by?.name
+      );
+      console.log("🔍 First report plant.address:", data[0]?.plant?.address);
+
+      // Debug: Check each report individually
+      console.log("🔍 Checking each report:");
+      data.forEach((report, index) => {
+        console.log(`Report ${index}:`, {
+          hasSubmittedBy: !!report.submitted_by,
+          hasPlant: !!report.plant,
+          submittedByName: report.submitted_by?.name,
+          plantAddress: report.plant?.address,
+          submittedByType: typeof report.submitted_by,
+          plantType: typeof report.plant,
+        });
+      });
+
+      // Filter out reports with null/undefined critical data
+      const validReports = data.filter(
+        (report: Report) => report.plant && report.plant.address
+        // Remove submitted_by requirement since it's null in your data
+      );
+
+      console.log("✅ Valid reports after filtering:", validReports);
+      console.log("✅ Number of valid reports:", validReports.length);
+
+      setReports(validReports);
     } catch (err) {
-      console.error("Failed to load reports", err);
+      console.error("❌ Failed to load reports", err);
       toast.error(
         err instanceof Error ? err.message : "Failed to load reports"
       );
@@ -200,21 +248,38 @@ const QualityReports = () => {
     );
   };
 
-  // Get unique employees and tehsils for filters
+  // Get unique employees and tehsils for filters - add null checks
   const uniqueEmployees = [
-    ...new Set(reports.map((report) => report.submitted_by.name)),
+    ...new Set(
+      reports
+        .filter((report) => report.plant && report.plant.tehsil)
+        .map((report) => report.submitted_by?.name || "Unknown User")
+    ),
   ];
   const uniqueTehsils = [
-    ...new Set(reports.map((report) => report.plant.tehsil)),
+    ...new Set(
+      reports
+        .filter((report) => report.plant && report.plant.tehsil)
+        .map((report) => report.plant.tehsil)
+    ),
   ];
 
-  // Filter reports
+  // Filter reports - add null checks
   let filteredReports = reports.filter((report) => {
+    // Add null checks before accessing properties
+    if (!report.plant) {
+      console.log("⚠️ Skipping report with null plant:", report);
+      return false; // Skip reports with null plant data
+    }
+
     const matchesSearch =
       report.plant.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.submitted_by.name.toLowerCase().includes(searchTerm.toLowerCase());
+      (report.submitted_by?.name || "Unknown User")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
     const matchesEmployee =
-      employeeFilter === "all" || report.submitted_by.name === employeeFilter;
+      employeeFilter === "all" ||
+      (report.submitted_by?.name || "Unknown User") === employeeFilter;
     const matchesTehsil =
       tehsilFilter === "all" || report.plant.tehsil === tehsilFilter;
     const matchesStatus =
@@ -222,6 +287,9 @@ const QualityReports = () => {
 
     return matchesSearch && matchesEmployee && matchesTehsil && matchesStatus;
   });
+
+  console.log("🔍 Filtered reports:", filteredReports);
+  console.log("🔍 Filtered reports length:", filteredReports.length);
   filteredReports = filteredReports.sort((a, b) => {
     const dateA = new Date(a.created_at).getTime();
     const dateB = new Date(b.created_at).getTime();
@@ -423,16 +491,16 @@ const QualityReports = () => {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {report.plant.address}
+                        {report.plant?.address || "N/A"}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
-                        {report.submitted_by.name}
+                        {report.submitted_by?.name || "Unknown User"}
                       </div>
                     </TableCell>
-                    <TableCell>{report.plant.tehsil}</TableCell>
+                    <TableCell>{report.plant?.tehsil || "N/A"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -456,7 +524,7 @@ const QualityReports = () => {
                               <DialogTitle>Quality Report Details</DialogTitle>
                               <DialogDescription>
                                 Detailed view of quality report for{" "}
-                                {report.plant.address}
+                                {report.plant?.address || "N/A"}
                               </DialogDescription>
                             </DialogHeader>
                             {selectedReport && (
@@ -465,14 +533,17 @@ const QualityReports = () => {
                                   <strong>Plant Information</strong>
                                   <div className="text-sm space-y-1">
                                     <div>
-                                      Location: {selectedReport.plant.address}
+                                      Location:{" "}
+                                      {selectedReport.plant?.address || "N/A"}
                                     </div>
                                     <div>
                                       Employee:{" "}
-                                      {selectedReport.submitted_by.name}
+                                      {selectedReport.submitted_by?.name ||
+                                        "Unknown User"}
                                     </div>
                                     <div>
-                                      Tehsil: {selectedReport.plant.tehsil}
+                                      Tehsil:{" "}
+                                      {selectedReport.plant?.tehsil || "N/A"}
                                     </div>
                                     <div>
                                       Date:{" "}
