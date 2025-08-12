@@ -169,14 +169,31 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] px-4">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <div className="space-y-2">
-            <span className="text-lg font-semibold">Loading dashboard...</span>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              Please wait while we fetch your data
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Admin Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Monitor and manage your RO/UF plant maintenance system
             </p>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="space-y-2">
+              <span className="text-lg font-semibold">
+                Loading dashboard...
+              </span>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Please wait while we fetch your data
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -184,135 +201,120 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 pt-6">
-        <div className="space-y-3">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
             Admin Dashboard
           </h1>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-3xl leading-relaxed">
+          <p className="text-muted-foreground mt-1">
             Monitor and manage your RO/UF plant maintenance system
           </p>
         </div>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <Card className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 sm:px-6">
-            <CardTitle className="text-sm sm:text-base font-semibold">
-              Total Plants
-            </CardTitle>
-            <Database className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Plants</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-6">
-            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-2">
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">
               {stats.totalPlants}
             </div>
-            <p className="text-sm text-muted-foreground">Across all regions</p>
+            <p className="text-xs text-muted-foreground">Across all regions</p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 sm:px-6">
-            <CardTitle className="text-sm sm:text-base font-semibold">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
               Warning Plants
             </CardTitle>
-            <AlertTriangle className="h-5 w-5 text-danger flex-shrink-0" />
+            <AlertTriangle className="h-4 w-4 text-danger" />
           </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-6">
-            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-danger mb-2">
+          <CardContent>
+            <div className="text-2xl font-bold text-danger">
               {stats.warningPlants}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               No report in 15+ days
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 sm:px-6">
-            <CardTitle className="text-sm sm:text-base font-semibold">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
               Total Employees
             </CardTitle>
-            <Users className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-6">
-            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-accent mb-2">
+          <CardContent>
+            <div className="text-2xl font-bold text-accent">
               {stats.totalEmployees}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Active maintenance staff
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 sm:px-6">
-            <CardTitle className="text-sm sm:text-base font-semibold">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
               Recent Reports
             </CardTitle>
-            <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-6">
-            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-success mb-2">
+          <CardContent>
+            <div className="text-2xl font-bold text-success">
               {stats.recentReports}
             </div>
-            <p className="text-sm text-muted-foreground">This week</p>
+            <p className="text-xs text-muted-foreground">This week</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Warning Plants */}
-      <Card className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
-        <CardHeader className="px-4 sm:px-6 pb-4">
-          <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl font-bold">
-            <AlertTriangle className="h-6 w-6 text-danger flex-shrink-0" />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-danger" />
             Plants Requiring Attention
           </CardTitle>
-          <CardDescription className="text-base sm:text-lg text-muted-foreground">
+          <CardDescription>
             Plants that haven't submitted reports in 15+ days
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 sm:px-6 pb-6">
+        <CardContent>
           {warningPlants.length === 0 ? (
-            <div className="text-center py-12 sm:py-16 text-muted-foreground">
-              <AlertTriangle className="h-16 w-16 sm:h-20 sm:w-20 mx-auto mb-6 text-muted-foreground" />
-              <div className="space-y-3">
-                <p className="text-lg sm:text-xl font-semibold">
-                  No plants require attention at the moment.
-                </p>
-                <p className="text-base text-muted-foreground">
-                  All plants have recent activity.
-                </p>
-              </div>
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p>No plants require attention at the moment.</p>
+              <p className="text-sm">All plants have recent activity.</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {warningPlants.map((plant) => (
                 <div
                   key={plant.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 border border-border rounded-xl hover:bg-muted/30 transition-all duration-200"
+                  className="flex items-center justify-between p-3 border rounded-lg"
                 >
-                  <div className="flex items-start sm:items-center gap-4 flex-1 min-w-0">
-                    <div className="w-3 h-3 bg-danger rounded-full flex-shrink-0 mt-2 sm:mt-0"></div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <p className="font-semibold text-base sm:text-lg truncate">
-                        {plant.address}
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-danger rounded-full"></div>
+                    <div>
+                      <p className="font-medium">{plant.address}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Type: {plant.type.toUpperCase()} • Last Report:{" "}
+                        {getLastReport(plant)}
                       </p>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-                        <span className="font-medium">
-                          Type: {plant.type.toUpperCase()}
-                        </span>
-                        <span className="hidden sm:inline">•</span>
-                        <span>Last Report: {getLastReport(plant)}</span>
-                      </div>
                     </div>
                   </div>
-                  <div className="mt-4 sm:mt-0 sm:ml-6 flex-shrink-0">
-                    <StatusBadge status="warning" />
-                  </div>
+                  <StatusBadge status="warning" />
                 </div>
               ))}
             </div>
