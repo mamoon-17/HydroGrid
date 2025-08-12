@@ -53,10 +53,12 @@ export class AwsService {
       throw new Error('AWS S3 bucket name not found in environment variables');
     }
 
-    const gfileName = this.generatorService.fileName(
-      <string>mime.extension(file.mimetype),
-      fileName,
-    );
+    const fileExtension =
+      file.originalname.split('.').length > 0
+        ? file.originalname.split('.')[file.originalname.split('.').length - 1]
+        : 'jpg';
+
+    const gfileName = this.generatorService.fileName(fileExtension, fileName);
 
     if (oldKey) {
       await this.deleteImage(oldKey);

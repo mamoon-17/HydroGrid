@@ -26,6 +26,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
     const accessToken = jwt.sign(
@@ -49,13 +50,13 @@ export class AuthService {
     await this.tokensRepo.save(tokenEntity);
 
     // Force cross-site cookie compatibility for browser: SameSite=None and Secure
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.engzone.site';
+    const cookieDomain = process.env.COOKIE_DOMAIN;
 
     res.cookie('token', accessToken, {
       httpOnly: true,
       sameSite: 'none',
       secure: true,
-      domain: cookieDomain,
+      domain: cookieDomain ?? undefined,
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
@@ -64,7 +65,7 @@ export class AuthService {
       httpOnly: true,
       sameSite: 'none',
       secure: true,
-      domain: cookieDomain,
+      domain: cookieDomain ?? undefined,
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
