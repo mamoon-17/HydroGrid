@@ -11,29 +11,26 @@ export interface IFile {
 }
 
 import { Injectable } from '@nestjs/common';
-import AWS from 'aws-sdk';
+const AWS = require('aws-sdk');
 import mime from 'mime-types';
-
-import { GlobalConfigService } from '../config/global-config.service';
 import { GeneratorService } from './generator.service';
 
 @Injectable()
 export class AwsService {
-  private readonly S3: AWS.S3;
+  private readonly S3: any;
 
   constructor(
-    private readonly apiConfigService: GlobalConfigService,
     private readonly generatorService: GeneratorService,
   ) {
-    const awsConfig = this.apiConfigService.awsConfigForS3;
+    // Check if required environment variables are set
+    if (!process.env.AWS_S3_ACCESS_KEY || !process.env.AWS_S3_SECRET_KEY) {
+      throw new Error('AWS S3 credentials not found in environment variables');
+    }
 
     AWS.config.update({
-      s3: {
-        credentials: {
-          accessKeyId: awsConfig.accessKey,
-          secretAccessKey: awsConfig.secretKey,
-        },
-      },
+      accessKeyId: process.env.AWS_S3_ACCESS_KEY,
+      secretAccessKey: process.env.AWS_S3_SECRET_KEY,
+      region: process.env.AWS_S3_REGION || 'me-south-1',
     });
 
     this.S3 = new AWS.S3();
@@ -49,6 +46,10 @@ export class AwsService {
       return '';
     }
 
+    if (!process.env.AWS_S3_BUCKET_NAME) {
+      throw new Error('AWS S3 bucket name not found in environment variables');
+    }
+
     const gfileName = this.generatorService.fileName(
       <string>mime.extension(file.mimetype),
       fileName,
@@ -61,7 +62,7 @@ export class AwsService {
     const key = 'images/' + path + gfileName;
 
     await this.S3.putObject({
-      Bucket: this.apiConfigService.awsConfigForS3.bucketName,
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
       Body: file.buffer,
       ACL: 'public-read',
       Key: key,
@@ -72,8 +73,12 @@ export class AwsService {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async deleteImage(key: string): Promise<unknown> {
+    if (!process.env.AWS_S3_BUCKET_NAME) {
+      throw new Error('AWS S3 bucket name not found in environment variables');
+    }
+
     return this.S3.deleteObject({
-      Bucket: this.apiConfigService.awsConfigForS3.bucketName,
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
       Key: key,
     }).promise();
   }

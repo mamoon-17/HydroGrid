@@ -29,6 +29,7 @@
     "aws-sdk": "^2.1692.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.1",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber": "^0.0.9",
     "libphonenumber-js": "^1.12.9",

@@ -18,7 +18,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RoleType } from 'src/users/users.entity';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
@@ -28,6 +28,7 @@ import {
   UpdateReportDto,
   UpdateReportSchema,
 } from './dtos/reports.dto';
+import { IFile } from 'src/shared/aws.service';
 
 @Controller('reports')
 export class ReportsController {
@@ -41,27 +42,17 @@ export class ReportsController {
   }
 
   @Post()
-  @UseGuards(AuthGuard)
+  // @UseGuards(AuthGuard)
   @UseInterceptors(
-    FilesInterceptor('files', 10, {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (_req, file, cb) => {
-          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          cb(null, uniqueSuffix + extname(file.originalname));
-        },
-      }),
-    }),
+    FileFieldsInterceptor([{ name: 'reportImages', maxCount: 4 }]),
   )
   createReport(
-    @Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
-    @UploadedFiles() files?: Express.Multer.File[],
+    //@Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
+    @UploadedFiles() files: { reportImages: IFile[] },
   ) {
-    // files is optional; if not present, use empty array
-    const filePaths = (files ?? []).map(
-      (f) => `https://dummy-s3.com/uploads/${f.filename}`,
-    );
-    return this.reportsService.createReport(body, filePaths);
+    console.log(files);
+    return 'hello';
+    //return this.reportsService.createReport(body);
   }
 
   @Get(':id')
