@@ -12,7 +12,10 @@ import {
   History,
   LogOut,
   Home,
+  Key,
 } from "lucide-react";
+import { useState } from "react";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -21,6 +24,7 @@ interface SidebarProps {
 export const Sidebar = ({ onClose }: SidebarProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -64,6 +68,15 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
           <div className="text-xs mt-1 capitalize bg-primary/10 text-primary px-2 py-1 rounded">
             {user?.role}
           </div>
+          <Button
+            onClick={() => setShowChangePasswordDialog(true)}
+            variant="ghost"
+            size="sm"
+            className="w-full mt-2 flex items-center gap-2 text-xs"
+          >
+            <Key className="h-3 w-3" />
+            Change Password
+          </Button>
         </div>
       </div>
 
@@ -91,7 +104,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
         </ul>
       </nav>
 
-      <div className="p-3 md:p-4 border-t">
+      <div className="p-3 md:p-4 border-t space-y-2">
         <Button
           onClick={handleLogout}
           variant="outline"
@@ -101,6 +114,11 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
           Logout
         </Button>
       </div>
+
+      <ChangePasswordDialog
+        open={showChangePasswordDialog}
+        onClose={() => setShowChangePasswordDialog(false)}
+      />
     </div>
   );
 };
