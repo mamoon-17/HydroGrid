@@ -11,6 +11,7 @@ import { unlink } from 'fs/promises';
 import { UsersService } from 'src/users/users.service';
 import { PlantsService } from 'src/plants/plants.service';
 import { CreateReportDto, UpdateReportDto } from './dtos/reports.dto';
+import { AwsService, IFile } from '../shared/aws.service';
 
 @Injectable()
 export class ReportsService {
@@ -20,6 +21,7 @@ export class ReportsService {
     private readonly mediaRepo: Repository<ReportMedia>,
     private readonly usersService: UsersService,
     private readonly plantsService: PlantsService,
+    private readonly awsService: AwsService,
   ) {}
 
   async getAllReports(): Promise<Report[]> {
@@ -40,7 +42,7 @@ export class ReportsService {
 
   async createReport(
     payload: CreateReportDto,
-    filePaths: string[] = [],
+    files: IFile[],
   ): Promise<Report> {
     const { plantId, userId, ...data } = payload;
 
@@ -55,9 +57,14 @@ export class ReportsService {
 
     const savedReport = await this.reportsRepo.save(report);
 
-    const media = filePaths.map((url) =>
+    const uploadedMedia = await Promise.all(
+      files.map((f) => this.awsService.uploadImage(f)),
+    );
+
+    const media = uploadedMedia.map((url) =>
       this.mediaRepo.create({ url, report: savedReport }),
     );
+
     await this.mediaRepo.save(media);
 
     return this.getReportById(savedReport.id);
@@ -110,7 +117,7 @@ export class ReportsService {
   async getReportsByPlantId(
     plantId: string,
     limit?: number,
-    offset?: number
+    offset?: number,
   ): Promise<Report[]> {
     await this.plantsService.getPlantsOrThrow([plantId]);
     return this.reportsRepo.find({

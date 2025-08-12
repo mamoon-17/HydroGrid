@@ -18,7 +18,10 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RoleType } from 'src/users/users.entity';
-import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
@@ -47,12 +50,10 @@ export class ReportsController {
     FileFieldsInterceptor([{ name: 'reportImages', maxCount: 4 }]),
   )
   createReport(
-    //@Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
+    @Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
     @UploadedFiles() files: { reportImages: IFile[] },
   ) {
-    console.log(files);
-    return 'hello';
-    //return this.reportsService.createReport(body);
+    return this.reportsService.createReport(body, files.reportImages);
   }
 
   @Get(':id')
@@ -84,20 +85,20 @@ export class ReportsController {
   ) {
     try {
       const filePaths = (files ?? []).map(
-      (f) => `https://dummy-s3.com/uploads/${f.filename}`,
-    );
-    const userRole = req.user?.role;
+        (f) => `https://dummy-s3.com/uploads/${f.filename}`,
+      );
+      const userRole = req.user?.role;
       return await this.reportsService.updateReport(
-      id,
-      body,
-      filePaths,
-      body.mediaToRemove || [],
-      userRole,
-    );
+        id,
+        body,
+        filePaths,
+        body.mediaToRemove || [],
+        userRole,
+      );
     } catch (err) {
       console.error('Update report error:', err);
       throw new InternalServerErrorException(
-        err.message || JSON.stringify(err)
+        err.message || JSON.stringify(err),
       );
     }
   }
@@ -115,12 +116,12 @@ export class ReportsController {
   getReportsByPlant(
     @Param('plantId') plantId: string,
     @Query('limit') limit?: string,
-    @Query('offset') offset?: string
+    @Query('offset') offset?: string,
   ) {
     return this.reportsService.getReportsByPlantId(
       plantId,
       limit ? parseInt(limit) : undefined,
-      offset ? parseInt(offset) : undefined
+      offset ? parseInt(offset) : undefined,
     );
   }
 

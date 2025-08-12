@@ -19,9 +19,7 @@ import { GeneratorService } from './generator.service';
 export class AwsService {
   private readonly S3: any;
 
-  constructor(
-    private readonly generatorService: GeneratorService,
-  ) {
+  constructor(private readonly generatorService: GeneratorService) {
     // Check if required environment variables are set
     if (!process.env.AWS_S3_ACCESS_KEY || !process.env.AWS_S3_SECRET_KEY) {
       throw new Error('AWS S3 credentials not found in environment variables');
@@ -35,6 +33,11 @@ export class AwsService {
 
     this.S3 = new AWS.S3();
   }
+
+  getS3URL = (url: string | undefined): string =>
+    url
+      ? `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_S3_BUCKET_REGION}.amazonaws.com/${url}`
+      : '';
 
   async uploadImage(
     file: IFile,
@@ -68,7 +71,7 @@ export class AwsService {
       Key: key,
     }).promise();
 
-    return key;
+    return this.getS3URL(key);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
