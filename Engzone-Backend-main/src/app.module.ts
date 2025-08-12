@@ -11,6 +11,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CronTasksService } from './cron-tasks/cron-tasks.service';
 import { RefreshToken } from './refresh_tokens/refresh_tokens.entity';
 import { GlobalConfigModule } from './config/global-config.module';
+import { SharedModule } from './shared/shared.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { GlobalConfigModule } from './config/global-config.module';
     AuthModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([RefreshToken]),
+    SharedModule,
   ],
   providers: [CronTasksService],
 })

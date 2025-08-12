@@ -22,4 +22,13 @@ export class GlobalConfigService {
       database: this.config.getOrThrow<string>('DATABASE_NAME'),
     };
   }
+
+  get awsConfigForS3() {
+    return {
+      accessKey: this.config.getOrThrow<string>('AWS_S3_ACCESS_KEY'),
+      secretKey: this.config.getOrThrow<string>('AWS_S3_SECRET_KEY'),
+      s3Region: this.config.getOrThrow<string>('AWS_S3_REGION'),
+      bucketName: this.config.getOrThrow<string>('AWS_S3_BUCKET_NAME'),
+    };
+  }
 }
