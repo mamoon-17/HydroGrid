@@ -46,14 +46,38 @@ export class ReportsController {
 
   @Post()
   // @UseGuards(AuthGuard)
-  @UseInterceptors(FilesInterceptor('files', 4))
-  createReport(@Req() req: any, @UploadedFiles() files: IFile[]) {
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'reportImages', maxCount: 4 }]),
+  )
+  createReport(
+    @Req() req: any,
+    @UploadedFiles() files: { reportImages: IFile[] },
+  ) {
+    console.log('=== FILE UPLOAD DEBUG ===');
     console.log('Raw request headers:', req.headers);
     console.log('Raw request body:', req.body);
     console.log('Raw request files:', files);
     console.log('Content-Type:', req.headers['content-type']);
+    console.log('Files type:', typeof files);
+    console.log('Files keys:', files ? Object.keys(files) : 'No files object');
+    console.log('ReportImages array:', files?.reportImages);
+    console.log('ReportImages length:', files?.reportImages?.length);
+    console.log('=== END DEBUG ===');
 
-    return this.reportsService.createReport(req.body, files || []);
+    return this.reportsService.createReport(
+      req.body,
+      files?.reportImages || [],
+    );
+  }
+
+  @Post('test-upload')
+  @UseInterceptors(FilesInterceptor('testFiles', 1))
+  testUpload(@UploadedFiles() files: IFile[]) {
+    console.log('=== TEST UPLOAD DEBUG ===');
+    console.log('Test files received:', files);
+    console.log('Files length:', files?.length);
+    console.log('=== END TEST DEBUG ===');
+    return { message: 'Test upload successful', files: files || [] };
   }
 
   @Get(':id')

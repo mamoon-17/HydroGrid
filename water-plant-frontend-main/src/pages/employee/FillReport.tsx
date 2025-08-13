@@ -360,7 +360,7 @@ const FillReport = () => {
 
       // Add all media files
       formData.media.forEach((mediaItem, index) => {
-        formDataToSend.append(`files`, mediaItem.file);
+        formDataToSend.append(`reportImages`, mediaItem.file);
       });
 
       // Debug: Log what's being sent
