@@ -49,9 +49,11 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-elevated">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">
-            RO/UF Plant Manager
-          </CardTitle>
+          <img
+            src="https://engzone-plants-project.s3.me-south-1.amazonaws.com/images/Engzone+Logo.jpg"
+            alt="Engzone"
+            className="mx-auto h-40 w-auto sm:h-48 transform translate-x-4 sm:translate-x-6"
+          />
           <CardDescription>
             Sign in to access your maintenance dashboard
           </CardDescription>
@@ -84,16 +86,6 @@ const Login = () => {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <div className="text-sm text-muted-foreground">
-              Demo credentials:
-            </div>
-            <div className="text-xs space-y-1 mt-2">
-              <div>Admin: admin / admin</div>
-              <div>Employee: employee / employee</div>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

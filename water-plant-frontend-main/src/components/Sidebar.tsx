@@ -24,7 +24,8 @@ interface SidebarProps {
 export const Sidebar = ({ onClose }: SidebarProps) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [showChangePasswordDialog, setShowChangePasswordDialog] =
+    useState(false);
 
   const handleLogout = () => {
     logout();
@@ -58,7 +59,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     <div className="w-full h-full bg-card border-r shadow-lg flex flex-col">
       <div className="p-4 md:p-6 border-b">
         <h1 className="text-lg md:text-xl font-bold text-primary">
-          RO/UF Plant Manager
+          Plant Manager
         </h1>
         <div className="mt-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">

@@ -177,7 +177,7 @@ const AdminDashboard = () => {
               Admin Dashboard
             </h1>
             <p className="text-muted-foreground mt-1">
-              Monitor and manage your RO/UF plant maintenance system
+              Monitor and manage your plant maintenance system
             </p>
           </div>
         </div>
@@ -209,7 +209,7 @@ const AdminDashboard = () => {
             Admin Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Monitor and manage your RO/UF plant maintenance system
+            Monitor and manage your plant maintenance system
           </p>
         </div>
       </div>
