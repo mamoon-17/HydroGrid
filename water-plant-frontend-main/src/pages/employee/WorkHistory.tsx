@@ -44,7 +44,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import { Label } from "../../components/ui/label";
-import { apiFetch } from '../../lib/api';
+import { apiFetch } from "../../lib/api";
 
 interface Report {
   id: string;
@@ -83,6 +83,7 @@ interface Report {
   created_at: string;
   updated_at: string;
   edit_count: number; // Added for edit count
+  media?: { id: string; url: string }[]; // Add media for images
 }
 
 const WorkHistory = () => {
@@ -574,6 +575,33 @@ const WorkHistory = () => {
                                   </p>
                                 </div>
                               </div>
+
+                              {report.media && report.media.length > 0 && (
+                                <div>
+                                  <h3 className="font-semibold mb-2">
+                                    Pictures
+                                  </h3>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {report.media.map((m) => (
+                                      <button
+                                        key={m.id}
+                                        type="button"
+                                        className="block w-full h-24 overflow-hidden rounded border"
+                                        onClick={() =>
+                                          window.open(m.url, "_blank")
+                                        }
+                                        title="Click to open"
+                                      >
+                                        <img
+                                          src={m.url}
+                                          alt="Report media"
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </DialogContent>
@@ -609,42 +637,144 @@ const WorkHistory = () => {
                               onSubmit={async (e) => {
                                 e.preventDefault();
                                 try {
-                                  // Clean and validate payload for backend
-                                  const cleanEnum = (val, allowed) => allowed.includes(val) ? val : allowed[0];
-                                  const allowedBackwash = ["done", "not_done", "not_required"];
+                                  const cleanEnum = (val, allowed) =>
+                                    allowed.includes(val) ? val : allowed[0];
+                                  const allowedBackwash = [
+                                    "done",
+                                    "not_done",
+                                    "not_required",
+                                  ];
                                   const payload = {
-                                    raw_water_tds: Number(editForm.raw_water_tds) || 0,
-                                    permeate_water_tds: Number(editForm.permeate_water_tds) || 0,
-                                    raw_water_ph: Number(editForm.raw_water_ph) || 0,
-                                    permeate_water_ph: Number(editForm.permeate_water_ph) || 0,
-                                    product_water_tds: Number(editForm.product_water_tds) || 0,
-                                    product_water_flow: Number(editForm.product_water_flow) || 0,
-                                    product_water_ph: Number(editForm.product_water_ph) || 0,
-                                    reject_water_flow: Number(editForm.reject_water_flow) || 0,
-                                    membrane_inlet_pressure: Number(editForm.membrane_inlet_pressure) || 0,
-                                    membrane_outlet_pressure: Number(editForm.membrane_outlet_pressure) || 0,
-                                    raw_water_inlet_pressure: Number(editForm.raw_water_inlet_pressure) || 0,
-                                    volts_amperes: Number(editForm.volts_amperes) || 0,
-                                    chemical_refill_litres: Number(editForm.chemical_refill_litres) || 0,
-                                    cartridge_filter_replacement: Math.max(0, Math.min(2, Number(editForm.cartridge_filter_replacement) || 0)),
-                                    membrane_replacement: Math.max(0, Math.min(8, Number(editForm.membrane_replacement) || 0)),
-                                    cip: editForm.cip === true || editForm.cip === "yes",
-                                    multimedia_backwash: cleanEnum(editForm.multimedia_backwash, allowedBackwash),
-                                    carbon_backwash: cleanEnum(editForm.carbon_backwash, allowedBackwash),
-                                    membrane_cleaning: cleanEnum(editForm.membrane_cleaning, allowedBackwash),
-                                    arsenic_media_backwash: cleanEnum(editForm.arsenic_media_backwash, allowedBackwash),
+                                    raw_water_tds:
+                                      Number(editForm.raw_water_tds) || 0,
+                                    permeate_water_tds:
+                                      Number(editForm.permeate_water_tds) || 0,
+                                    raw_water_ph:
+                                      Number(editForm.raw_water_ph) || 0,
+                                    permeate_water_ph:
+                                      Number(editForm.permeate_water_ph) || 0,
+                                    product_water_tds:
+                                      Number(editForm.product_water_tds) || 0,
+                                    product_water_flow:
+                                      Number(editForm.product_water_flow) || 0,
+                                    product_water_ph:
+                                      Number(editForm.product_water_ph) || 0,
+                                    reject_water_flow:
+                                      Number(editForm.reject_water_flow) || 0,
+                                    membrane_inlet_pressure:
+                                      Number(
+                                        editForm.membrane_inlet_pressure
+                                      ) || 0,
+                                    membrane_outlet_pressure:
+                                      Number(
+                                        editForm.membrane_outlet_pressure
+                                      ) || 0,
+                                    raw_water_inlet_pressure:
+                                      Number(
+                                        editForm.raw_water_inlet_pressure
+                                      ) || 0,
+                                    volts_amperes:
+                                      Number(editForm.volts_amperes) || 0,
+                                    chemical_refill_litres:
+                                      Number(editForm.chemical_refill_litres) ||
+                                      0,
+                                    cartridge_filter_replacement: Math.max(
+                                      0,
+                                      Math.min(
+                                        2,
+                                        Number(
+                                          editForm.cartridge_filter_replacement
+                                        ) || 0
+                                      )
+                                    ),
+                                    membrane_replacement: Math.max(
+                                      0,
+                                      Math.min(
+                                        8,
+                                        Number(editForm.membrane_replacement) ||
+                                          0
+                                      )
+                                    ),
+                                    cip:
+                                      editForm.cip === true ||
+                                      editForm.cip === "yes",
+                                    multimedia_backwash: cleanEnum(
+                                      editForm.multimedia_backwash,
+                                      allowedBackwash
+                                    ),
+                                    carbon_backwash: cleanEnum(
+                                      editForm.carbon_backwash,
+                                      allowedBackwash
+                                    ),
+                                    membrane_cleaning: cleanEnum(
+                                      editForm.membrane_cleaning,
+                                      allowedBackwash
+                                    ),
+                                    arsenic_media_backwash: cleanEnum(
+                                      editForm.arsenic_media_backwash,
+                                      allowedBackwash
+                                    ),
                                     notes: editForm.notes || "",
                                   };
-                                  await apiFetch(`/reports/${editReport.id}`, {
-                                    method: "PATCH",
-                                    body: JSON.stringify(payload),
-                                  });
+
+                                  // If no media changes queued, send JSON only
+                                  const hasNewFiles =
+                                    editForm._newFiles &&
+                                    editForm._newFiles.length > 0;
+                                  const hasRemovals =
+                                    editForm._mediaToRemove &&
+                                    editForm._mediaToRemove.length > 0;
+                                  if (!hasNewFiles && !hasRemovals) {
+                                    await apiFetch(
+                                      `/reports/${editReport.id}`,
+                                      {
+                                        method: "PATCH",
+                                        body: JSON.stringify(payload),
+                                      }
+                                    );
+                                  } else {
+                                    const fd = new FormData();
+                                    Object.entries(payload).forEach(([k, v]) =>
+                                      fd.append(k, String(v))
+                                    );
+                                    // append removals
+                                    (editForm._mediaToRemove || []).forEach(
+                                      (id) => fd.append("mediaToRemove", id)
+                                    );
+                                    // append new files
+                                    (editForm._newFiles || []).forEach((file) =>
+                                      fd.append("files", file)
+                                    );
+
+                                    await fetch(
+                                      `${
+                                        import.meta.env.VITE_API_BASE_URL
+                                      }/reports/${editReport.id}`,
+                                      {
+                                        method: "PATCH",
+                                        credentials: "include",
+                                        body: fd,
+                                      }
+                                    ).then(async (res) => {
+                                      if (!res.ok) {
+                                        const err = await res
+                                          .json()
+                                          .catch(() => ({}));
+                                        throw new Error(
+                                          err.message || "API error"
+                                        );
+                                      }
+                                    });
+                                  }
+
                                   toast.success("Report updated successfully!");
                                   setEditDialogOpen(false);
                                   fetchUserReports();
                                 } catch (err) {
                                   toast.error(
-                                    err instanceof Error ? err.message : "Failed to update report"
+                                    err instanceof Error
+                                      ? err.message
+                                      : "Failed to update report"
                                   );
                                 }
                               }}
@@ -990,6 +1120,103 @@ const WorkHistory = () => {
                                   })
                                 }
                               />
+
+                              {/* Manage existing images */}
+                              {editReport?.media &&
+                                editReport.media.length > 0 && (
+                                  <div className="mt-4">
+                                    <Label>Existing Pictures</Label>
+                                    <div className="grid grid-cols-3 gap-2 mt-2">
+                                      {editReport.media.map((m) => (
+                                        <div
+                                          key={m.id}
+                                          className="relative group border rounded overflow-hidden"
+                                        >
+                                          <img
+                                            src={m.url}
+                                            alt="media"
+                                            className="w-full h-24 object-cover"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setEditForm((prev) => ({
+                                                ...prev,
+                                                _mediaToRemove: Array.from(
+                                                  new Set([
+                                                    ...(prev?._mediaToRemove ||
+                                                      []),
+                                                    m.id,
+                                                  ])
+                                                ),
+                                              }))
+                                            }
+                                            className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded opacity-90 group-hover:opacity-100"
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                              {/* Add new images */}
+                              <div className="mt-4">
+                                <Label>Add New Pictures</Label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  onChange={(e) => {
+                                    const files = Array.from(
+                                      e.target.files || []
+                                    );
+                                    setEditForm((prev) => ({
+                                      ...prev,
+                                      _newFiles: [
+                                        ...(prev?._newFiles || []),
+                                        ...files,
+                                      ],
+                                    }));
+                                  }}
+                                  className="mt-2"
+                                />
+                                {editForm?._newFiles?.length > 0 && (
+                                  <div className="grid grid-cols-3 gap-2 mt-2">
+                                    {editForm._newFiles.map(
+                                      (file: File, idx: number) => (
+                                        <div
+                                          key={idx}
+                                          className="relative border rounded overflow-hidden"
+                                        >
+                                          <img
+                                            src={URL.createObjectURL(file)}
+                                            className="w-full h-24 object-cover"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setEditForm((prev) => ({
+                                                ...prev,
+                                                _newFiles:
+                                                  prev._newFiles.filter(
+                                                    (_: File, i: number) =>
+                                                      i !== idx
+                                                  ),
+                                              }))
+                                            }
+                                            className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded"
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
                               <div className="flex justify-end gap-2 mt-4">
                                 <Button
                                   type="button"

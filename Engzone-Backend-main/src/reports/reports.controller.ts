@@ -108,6 +108,16 @@ export class ReportsController {
     @Req() req,
   ) {
     try {
+      // Prefer raw req.body for mediaToRemove to avoid Zod stripping
+      let mediaToRemove: string[] = [];
+      const raw = req?.body?.mediaToRemove;
+      if (Array.isArray(raw)) {
+        mediaToRemove = raw as string[];
+      } else if (typeof raw === 'string' && raw.length > 0) {
+        // Support both 'mediaToRemove' and 'mediaToRemove[]'
+        mediaToRemove = [raw];
+      }
+
       const filePaths = (files ?? []).map(
         (f) => `https://dummy-s3.com/uploads/${f.filename}`,
       );
@@ -116,7 +126,7 @@ export class ReportsController {
         id,
         body,
         filePaths,
-        body.mediaToRemove || [],
+        mediaToRemove,
         userRole,
       );
     } catch (err) {
