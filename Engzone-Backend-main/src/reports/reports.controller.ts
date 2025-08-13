@@ -46,10 +46,13 @@ export class ReportsController {
 
   @Post()
   // @UseGuards(AuthGuard)
-  @UseInterceptors(FilesInterceptor('reportImages', 4))
+  @UseInterceptors(FilesInterceptor('files', 4))
   createReport(@Req() req: any, @UploadedFiles() files: IFile[]) {
-    console.log('Received body:', req.body);
-    console.log('Received files:', files);
+    console.log('Raw request headers:', req.headers);
+    console.log('Raw request body:', req.body);
+    console.log('Raw request files:', files);
+    console.log('Content-Type:', req.headers['content-type']);
+
     return this.reportsService.createReport(req.body, files || []);
   }
 

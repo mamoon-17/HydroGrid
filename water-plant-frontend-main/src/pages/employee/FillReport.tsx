@@ -360,8 +360,14 @@ const FillReport = () => {
 
       // Add all media files
       formData.media.forEach((mediaItem, index) => {
-        formDataToSend.append(`reportImages`, mediaItem.file);
+        formDataToSend.append(`files`, mediaItem.file);
       });
+
+      // Debug: Log what's being sent
+      console.log("FormData contents:");
+      for (let [key, value] of formDataToSend.entries()) {
+        console.log(`${key}:`, value);
+      }
 
       // Use apiFetch with FormData (no JSON.stringify needed)
       await apiFetch("/reports", {

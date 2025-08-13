@@ -46,6 +46,8 @@ export class ReportsService {
   ): Promise<Report> {
     console.log('Service received payload:', payload);
     console.log('Service received files:', files);
+    console.log('Payload keys:', Object.keys(payload));
+    console.log('Payload values:', Object.values(payload));
 
     const { plantId, userId, ...data } = payload;
 
@@ -62,7 +64,11 @@ export class ReportsService {
       submitted_by: user,
     });
 
-    const savedReport = await this.reportsRepo.save(report);
+    const result = await this.reportsRepo.insert(report);
+    const savedReport: Report = (await this.reportsRepo.findOne({
+      where: { id: result.identifiers[0].id },
+      relations: ['plant', 'submitted_by', 'media'],
+    })) as Report;
 
     if (files && files.length > 0) {
       console.log('Processing files for upload...');
