@@ -89,20 +89,10 @@ export class ReportsController {
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN, RoleType.USER)
-  @UseInterceptors(
-    FilesInterceptor('files', 10, {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (_req, file, cb) => {
-          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          cb(null, uniqueSuffix + extname(file.originalname));
-        },
-      }),
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('files', 10))
   async updateReport(
     @Param('id') id: string,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles() files: IFile[],
     @Body(new ZodValidationPipe(UpdateReportSchema))
     body: UpdateReportDto & { mediaToRemove?: string[] },
     @Req() req,
@@ -110,22 +100,18 @@ export class ReportsController {
     try {
       // Prefer raw req.body for mediaToRemove to avoid Zod stripping
       let mediaToRemove: string[] = [];
-      const raw = req?.body?.mediaToRemove;
+      const raw = req?.body?.mediaToRemove ?? req?.body?.['mediaToRemove[]'];
       if (Array.isArray(raw)) {
         mediaToRemove = raw as string[];
       } else if (typeof raw === 'string' && raw.length > 0) {
-        // Support both 'mediaToRemove' and 'mediaToRemove[]'
         mediaToRemove = [raw];
       }
 
-      const filePaths = (files ?? []).map(
-        (f) => `https://dummy-s3.com/uploads/${f.filename}`,
-      );
       const userRole = req.user?.role;
       return await this.reportsService.updateReport(
         id,
         body,
-        filePaths,
+        files || [],
         mediaToRemove,
         userRole,
       );

@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Report } from './reports.entity';
 import { ReportMedia } from '../report_media/report_media.entity';
 import { unlink } from 'fs/promises';
@@ -92,11 +92,14 @@ export class ReportsService {
   async updateReport(
     id: string,
     updates: UpdateReportDto,
-    filePaths: string[] = [],
+    files: IFile[] = [],
     mediaToRemove: string[] = [],
     userRole?: string,
   ): Promise<Report> {
-    const report = await this.reportsRepo.findOne({ where: { id } });
+    const report = await this.reportsRepo.findOne({
+      where: { id },
+      relations: ['media'],
+    });
     if (!report) throw new NotFoundException('Report not found');
 
     // Only enforce edit limit for non-admins
@@ -110,26 +113,64 @@ export class ReportsService {
     Object.assign(report, updates);
     await this.reportsRepo.save(report);
 
+    // Remove selected media from S3 and DB
     if (mediaToRemove?.length) {
-      await Promise.all(mediaToRemove.map((id) => this.deleteMedia(id)));
+      const toRemove = await this.mediaRepo.find({
+        where: { id: In(mediaToRemove) },
+      });
+      await Promise.all(
+        toRemove.map(async (m) => {
+          const url = m.url;
+          const bucket = process.env.AWS_S3_BUCKET_NAME as string;
+          const region = (process.env.AWS_S3_BUCKET_REGION ||
+            process.env.AWS_S3_REGION) as string;
+          const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
+          const key = url.startsWith(prefix) ? url.slice(prefix.length) : url;
+          await this.awsService.deleteImage(key).catch(() => undefined);
+          await this.mediaRepo.delete({ id: m.id });
+        }),
+      );
     }
 
-    if (filePaths.length) {
-      const media = filePaths.map((url) =>
-        this.mediaRepo.create({ url, report }),
+    // Upload new files to S3 and create media records
+    if (files && files.length > 0) {
+      const uploadedUrls = await Promise.all(
+        files.map((f) => this.awsService.uploadImage(f)),
       );
-      await this.mediaRepo.save(media);
+      const media = uploadedUrls
+        .filter((u) => !!u)
+        .map((url) => this.mediaRepo.create({ url, report }));
+      if (media.length) {
+        await this.mediaRepo.save(media);
+      }
     }
 
     return this.getReportById(report.id);
   }
 
   async deleteReport(id: string): Promise<{ message: string }> {
-    const result = await this.reportsRepo.delete({ id });
-    if (result.affected === 0) {
-      throw new NotFoundException('Report not found');
+    const report = await this.reportsRepo.findOne({
+      where: { id },
+      relations: ['media'],
+    });
+    if (!report) throw new NotFoundException('Report not found');
+
+    // Delete associated media from S3 first
+    if (report.media?.length) {
+      await Promise.all(
+        report.media.map(async (m) => {
+          const url = m.url;
+          const bucket = process.env.AWS_S3_BUCKET_NAME as string;
+          const region = (process.env.AWS_S3_BUCKET_REGION ||
+            process.env.AWS_S3_REGION) as string;
+          const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
+          const key = url.startsWith(prefix) ? url.slice(prefix.length) : url;
+          await this.awsService.deleteImage(key).catch(() => undefined);
+        }),
+      );
     }
 
+    await this.reportsRepo.delete({ id });
     return { message: 'Report deleted successfully' };
   }
 
@@ -161,11 +202,15 @@ export class ReportsService {
 
     if (!media) throw new NotFoundException('Media not found');
 
-    try {
-      await unlink(media.url);
-    } catch {
-      // ignore file not found
-    }
+    // Delete from S3
+    const bucket = process.env.AWS_S3_BUCKET_NAME as string;
+    const region = (process.env.AWS_S3_BUCKET_REGION ||
+      process.env.AWS_S3_REGION) as string;
+    const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
+    const key = media.url.startsWith(prefix)
+      ? media.url.slice(prefix.length)
+      : media.url;
+    await this.awsService.deleteImage(key).catch(() => undefined);
 
     await this.mediaRepo.delete({ id: mediaId });
 

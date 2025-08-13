@@ -96,6 +96,16 @@ const WorkHistory = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   // 1. Add edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const openEdit = (report: Report) => {
+    setEditReport(report);
+    setEditForm({ ...report, _newFiles: [], _mediaToRemove: [] });
+    setEditDialogOpen(true);
+  };
+  const closeEdit = () => {
+    setEditDialogOpen(false);
+    setEditReport(null);
+    setEditForm(null);
+  };
   const [editReport, setEditReport] = useState<Report | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
 
@@ -339,7 +349,12 @@ const WorkHistory = () => {
                     <TableCell>{report.product_water_flow} LPH</TableCell>
                     <TableCell>{formatDate(report.created_at)}</TableCell>
                     <TableCell>
-                      <Dialog>
+                      <Dialog
+                        open={editDialogOpen}
+                        onOpenChange={(open) => {
+                          if (!open) closeEdit();
+                        }}
+                      >
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
@@ -608,17 +623,18 @@ const WorkHistory = () => {
                       </Dialog>
                     </TableCell>
                     <TableCell>
-                      <Dialog>
+                      <Dialog
+                        open={editDialogOpen}
+                        onOpenChange={(open) => {
+                          if (!open) closeEdit();
+                        }}
+                      >
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
                             size="sm"
                             disabled={report.edit_count >= 2}
-                            onClick={() => {
-                              setEditReport(report);
-                              setEditForm({ ...report });
-                              setEditDialogOpen(true);
-                            }}
+                            onClick={() => openEdit(report)}
                           >
                             Edit
                           </Button>
@@ -1127,36 +1143,43 @@ const WorkHistory = () => {
                                   <div className="mt-4">
                                     <Label>Existing Pictures</Label>
                                     <div className="grid grid-cols-3 gap-2 mt-2">
-                                      {editReport.media.map((m) => (
-                                        <div
-                                          key={m.id}
-                                          className="relative group border rounded overflow-hidden"
-                                        >
-                                          <img
-                                            src={m.url}
-                                            alt="media"
-                                            className="w-full h-24 object-cover"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setEditForm((prev) => ({
-                                                ...prev,
-                                                _mediaToRemove: Array.from(
-                                                  new Set([
-                                                    ...(prev?._mediaToRemove ||
-                                                      []),
-                                                    m.id,
-                                                  ])
-                                                ),
-                                              }))
-                                            }
-                                            className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded opacity-90 group-hover:opacity-100"
+                                      {(editForm?.media || [])
+                                        .filter(
+                                          (m: any) =>
+                                            !(
+                                              editForm?._mediaToRemove || []
+                                            ).includes(m.id)
+                                        )
+                                        .map((m: any) => (
+                                          <div
+                                            key={m.id}
+                                            className="relative group border rounded overflow-hidden"
                                           >
-                                            Remove
-                                          </button>
-                                        </div>
-                                      ))}
+                                            <img
+                                              src={m.url}
+                                              alt="media"
+                                              className="w-full h-24 object-cover"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setEditForm((prev) => ({
+                                                  ...prev,
+                                                  _mediaToRemove: Array.from(
+                                                    new Set([
+                                                      ...(prev?._mediaToRemove ||
+                                                        []),
+                                                      m.id,
+                                                    ])
+                                                  ),
+                                                }))
+                                              }
+                                              className="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded opacity-90 group-hover:opacity-100"
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        ))}
                                     </div>
                                   </div>
                                 )}
@@ -1221,7 +1244,7 @@ const WorkHistory = () => {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  onClick={() => setEditDialogOpen(false)}
+                                  onClick={closeEdit}
                                 >
                                   Cancel
                                 </Button>
