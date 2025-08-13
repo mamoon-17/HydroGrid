@@ -34,6 +34,7 @@
     "libphonenumber": "^0.0.9",
     "libphonenumber-js": "^1.12.9",
     "mime-types": "^3.0.1",
+    "multer": "^2.0.2",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

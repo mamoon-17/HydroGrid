@@ -42,7 +42,7 @@ async function bootstrap() {
     }
 
     // Allow https://engzone.site, https://www.engzone.site, and any https subdomain of engzone.site
-    const engzoneRegex = /^https:\/\/(?:[a-z0-9-]+\.)*engzone\.site$/i;
+    const engzoneRegex = /^https:\/\/(?:[a-z0.9-]+\.)*engzone\.site$/i;
     // Allow Amplify preview/prod app domains like https://*.amplifyapp.com
     const amplifyRegex = /^https:\/\/(?:[a-z0-9-]+\.)*amplifyapp\.com$/i;
 
@@ -61,6 +61,7 @@ async function bootstrap() {
   });
 
   app.use(cookieParser());
+
   await app.listen(process.env.PORT || 3000);
   console.log(`Server listening on port ${process.env.PORT || 3000}`);
 }

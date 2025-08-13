@@ -41,10 +41,17 @@ export class ReportsService {
   }
 
   async createReport(
-    payload: CreateReportDto,
+    payload: any, // Temporarily accept any type to test file upload
     files: IFile[],
   ): Promise<Report> {
+    console.log('Service received payload:', payload);
+    console.log('Service received files:', files);
+
     const { plantId, userId, ...data } = payload;
+
+    console.log('Extracted plantId:', plantId);
+    console.log('Extracted userId:', userId);
+    console.log('Extracted data:', data);
 
     const [plant] = await this.plantsService.getPlantsOrThrow([plantId]);
     const [user] = await this.usersService.getUsersOrThrow([userId]);
@@ -57,15 +64,21 @@ export class ReportsService {
 
     const savedReport = await this.reportsRepo.save(report);
 
-    const uploadedMedia = await Promise.all(
-      files.map((f) => this.awsService.uploadImage(f)),
-    );
+    if (files && files.length > 0) {
+      console.log('Processing files for upload...');
+      const uploadedMedia = await Promise.all(
+        files.map((f) => this.awsService.uploadImage(f)),
+      );
 
-    const media = uploadedMedia.map((url) =>
-      this.mediaRepo.create({ url, report: savedReport }),
-    );
+      const media = uploadedMedia.map((url) =>
+        this.mediaRepo.create({ url, report: savedReport }),
+      );
 
-    await this.mediaRepo.save(media);
+      await this.mediaRepo.save(media);
+      console.log('Files processed and saved successfully');
+    } else {
+      console.log('No files to process');
+    }
 
     return this.getReportById(savedReport.id);
   }

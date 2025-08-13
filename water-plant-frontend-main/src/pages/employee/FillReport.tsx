@@ -43,7 +43,7 @@ interface Plant {
 
 interface ReportMediaItem {
   id: string;
-  url: string; // data URL for mock
+  file: File; // Change from url to file
   created_at: string;
 }
 
@@ -112,14 +112,24 @@ const FillReport = () => {
   const DRAFT_KEY = "plant_report_draft";
 
   function saveDraftToStorage(draft: ReportFormData) {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    // Create a copy without media files since File objects can't be serialized
+    const draftWithoutMedia = {
+      ...draft,
+      media: [], // Don't save media files to localStorage
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftWithoutMedia));
   }
 
   function loadDraftFromStorage(): ReportFormData | null {
     const data = localStorage.getItem(DRAFT_KEY);
     if (!data) return null;
     try {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      // Ensure media array is initialized as empty since we don't save it
+      return {
+        ...parsed,
+        media: [],
+      };
     } catch {
       return null;
     }
@@ -175,23 +185,18 @@ const FillReport = () => {
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData((prev) => ({
-          ...prev,
-          media: [
-            ...prev.media,
-            {
-              id:
-                Date.now().toString() + Math.random().toString(36).substring(2),
-              url: event.target?.result as string,
-              created_at: new Date().toISOString(),
-            },
-          ],
-        }));
-      };
-      reader.readAsDataURL(file);
+    Array.from(files).forEach((fileItem) => {
+      setFormData((prev) => ({
+        ...prev,
+        media: [
+          ...prev.media,
+          {
+            id: Date.now().toString() + Math.random().toString(36).substring(2),
+            file: fileItem, // Store the actual File object
+            created_at: new Date().toISOString(),
+          },
+        ],
+      }));
     });
   };
 
@@ -301,42 +306,70 @@ const FillReport = () => {
     setIsSubmitting(true);
 
     try {
-      // Prepare the report data for backend
-      const reportData = {
-        plantId: formData.plantId,
-        userId: user?.id,
-        raw_water_tds: parseFloat(formData.raw_water_tds),
-        permeate_water_tds: parseFloat(formData.permeate_water_tds),
-        raw_water_ph: parseFloat(formData.raw_water_ph),
-        permeate_water_ph: parseFloat(formData.permeate_water_ph),
-        product_water_tds: parseFloat(formData.product_water_tds),
-        product_water_flow: parseFloat(formData.product_water_flow),
-        product_water_ph: parseFloat(formData.product_water_ph),
-        reject_water_flow: parseFloat(formData.reject_water_flow),
-        membrane_inlet_pressure: parseFloat(formData.membrane_inlet_pressure),
-        membrane_outlet_pressure: parseFloat(formData.membrane_outlet_pressure),
-        raw_water_inlet_pressure: parseFloat(formData.raw_water_inlet_pressure),
-        volts_amperes: parseFloat(formData.volts_amperes),
-        multimedia_backwash: formData.multimedia_backwash,
-        carbon_backwash: formData.carbon_backwash,
-        membrane_cleaning: formData.membrane_cleaning,
-        arsenic_media_backwash: formData.arsenic_media_backwash,
-        cip: formData.cip,
-        chemical_refill_litres: parseFloat(formData.chemical_refill_litres),
-        cartridge_filter_replacement: Math.max(
-          0,
-          Math.min(2, parseFloat(formData.cartridge_filter_replacement))
-        ),
-        membrane_replacement: Math.max(
-          0,
-          Math.min(8, parseFloat(formData.membrane_replacement))
-        ),
-        notes: formData.notes || "",
-      };
+      // Create FormData for multipart/form-data submission
+      const formDataToSend = new FormData();
 
+      // Add all the form fields
+      formDataToSend.append("plantId", formData.plantId);
+      formDataToSend.append("userId", user?.id || "");
+      formDataToSend.append("raw_water_tds", formData.raw_water_tds);
+      formDataToSend.append("permeate_water_tds", formData.permeate_water_tds);
+      formDataToSend.append("raw_water_ph", formData.raw_water_ph);
+      formDataToSend.append("permeate_water_ph", formData.permeate_water_ph);
+      formDataToSend.append("product_water_tds", formData.product_water_tds);
+      formDataToSend.append("product_water_flow", formData.product_water_flow);
+      formDataToSend.append("product_water_ph", formData.product_water_ph);
+      formDataToSend.append("reject_water_flow", formData.reject_water_flow);
+      formDataToSend.append(
+        "membrane_inlet_pressure",
+        formData.membrane_inlet_pressure
+      );
+      formDataToSend.append(
+        "membrane_outlet_pressure",
+        formData.membrane_outlet_pressure
+      );
+      formDataToSend.append(
+        "raw_water_inlet_pressure",
+        formData.raw_water_inlet_pressure
+      );
+      formDataToSend.append("volts_amperes", formData.volts_amperes);
+      formDataToSend.append(
+        "multimedia_backwash",
+        formData.multimedia_backwash
+      );
+      formDataToSend.append("carbon_backwash", formData.carbon_backwash);
+      formDataToSend.append("membrane_cleaning", formData.membrane_cleaning);
+      formDataToSend.append(
+        "arsenic_media_backwash",
+        formData.arsenic_media_backwash
+      );
+      formDataToSend.append("cip", formData.cip.toString());
+      formDataToSend.append(
+        "chemical_refill_litres",
+        formData.chemical_refill_litres
+      );
+      formDataToSend.append(
+        "cartridge_filter_replacement",
+        formData.cartridge_filter_replacement
+      );
+      formDataToSend.append(
+        "membrane_replacement",
+        formData.membrane_replacement
+      );
+      formDataToSend.append("notes", formData.notes || "");
+
+      // Add all media files
+      formData.media.forEach((mediaItem, index) => {
+        formDataToSend.append(`reportImages`, mediaItem.file);
+      });
+
+      // Use apiFetch with FormData (no JSON.stringify needed)
       await apiFetch("/reports", {
         method: "POST",
-        body: JSON.stringify(reportData),
+        body: formDataToSend, // Send FormData directly
+        headers: {
+          // Don't set Content-Type header - let browser set it with boundary for multipart/form-data
+        },
       });
 
       toast.success("Report submitted successfully!");
@@ -878,10 +911,22 @@ const FillReport = () => {
                     className="relative w-24 h-24 border rounded overflow-hidden"
                   >
                     <img
-                      src={media.url}
+                      src={URL.createObjectURL(media.file)} // Use URL.createObjectURL for File objects
                       alt="Report media"
                       className="object-cover w-full h-full"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          media: prev.media.filter((m) => m.id !== media.id),
+                        }));
+                      }}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>

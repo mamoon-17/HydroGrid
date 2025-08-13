@@ -46,14 +46,11 @@ export class ReportsController {
 
   @Post()
   // @UseGuards(AuthGuard)
-  @UseInterceptors(
-    FileFieldsInterceptor([{ name: 'reportImages', maxCount: 4 }]),
-  )
-  createReport(
-    @Body(new ZodValidationPipe(CreateReportSchema)) body: CreateReportDto,
-    @UploadedFiles() files: { reportImages: IFile[] },
-  ) {
-    return this.reportsService.createReport(body, files.reportImages);
+  @UseInterceptors(FilesInterceptor('reportImages', 4))
+  createReport(@Req() req: any, @UploadedFiles() files: IFile[]) {
+    console.log('Received body:', req.body);
+    console.log('Received files:', files);
+    return this.reportsService.createReport(req.body, files || []);
   }
 
   @Get(':id')

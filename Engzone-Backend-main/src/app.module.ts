@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MulterModule } from '@nestjs/platform-express';
 import { UsersModule } from './users/users.module';
 import { PlantsModule } from './plants/plants.module';
 import { ReportsModule } from './reports/reports.module';
@@ -16,6 +17,9 @@ import { SharedModule } from './shared/shared.module';
 @Module({
   imports: [
     GlobalConfigModule,
+    MulterModule.register({
+      dest: './uploads',
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

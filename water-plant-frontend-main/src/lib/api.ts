@@ -6,11 +6,15 @@ export async function apiFetch<T = any>(
   init?: RequestInit,
   retry = true // allow one retry after refresh
 ): Promise<T> {
+  // Don't set Content-Type for FormData - let browser set it with boundary
+  const isFormData = init?.body instanceof FormData;
+  
   const res = await fetch(`${BASE_URL}${input}`, {
     ...init,
     credentials: "include", // VERY IMPORTANT
     headers: {
-      "Content-Type": "application/json",
+      // Only set Content-Type if not FormData
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(init?.headers || {}),
     },
   });
