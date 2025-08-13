@@ -349,12 +349,7 @@ const WorkHistory = () => {
                     <TableCell>{report.product_water_flow} LPH</TableCell>
                     <TableCell>{formatDate(report.created_at)}</TableCell>
                     <TableCell>
-                      <Dialog
-                        open={editDialogOpen}
-                        onOpenChange={(open) => {
-                          if (!open) closeEdit();
-                        }}
-                      >
+                      <Dialog>
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
@@ -564,32 +559,6 @@ const WorkHistory = () => {
                                   </p>
                                 </div>
                               )}
-
-                              <div>
-                                <h3 className="font-semibold mb-2">
-                                  Report Information
-                                </h3>
-                                <div className="space-y-1 text-sm">
-                                  <p>
-                                    <span className="font-medium">
-                                      Submitted:
-                                    </span>{" "}
-                                    {formatDate(report.created_at)}
-                                  </p>
-                                  <p>
-                                    <span className="font-medium">
-                                      Last Updated:
-                                    </span>{" "}
-                                    {formatDate(report.updated_at)}
-                                  </p>
-                                  <p>
-                                    <span className="font-medium">
-                                      Submitted By:
-                                    </span>{" "}
-                                    {report.submitted_by.name}
-                                  </p>
-                                </div>
-                              </div>
 
                               {report.media && report.media.length > 0 && (
                                 <div>

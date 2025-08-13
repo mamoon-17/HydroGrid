@@ -120,12 +120,7 @@ export class ReportsService {
       });
       await Promise.all(
         toRemove.map(async (m) => {
-          const url = m.url;
-          const bucket = process.env.AWS_S3_BUCKET_NAME as string;
-          const region = (process.env.AWS_S3_BUCKET_REGION ||
-            process.env.AWS_S3_REGION) as string;
-          const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
-          const key = url.startsWith(prefix) ? url.slice(prefix.length) : url;
+          const key = this.extractS3KeyFromUrl(m.url);
           await this.awsService.deleteImage(key).catch(() => undefined);
           await this.mediaRepo.delete({ id: m.id });
         }),
@@ -159,12 +154,7 @@ export class ReportsService {
     if (report.media?.length) {
       await Promise.all(
         report.media.map(async (m) => {
-          const url = m.url;
-          const bucket = process.env.AWS_S3_BUCKET_NAME as string;
-          const region = (process.env.AWS_S3_BUCKET_REGION ||
-            process.env.AWS_S3_REGION) as string;
-          const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
-          const key = url.startsWith(prefix) ? url.slice(prefix.length) : url;
+          const key = this.extractS3KeyFromUrl(m.url);
           await this.awsService.deleteImage(key).catch(() => undefined);
         }),
       );
@@ -203,13 +193,7 @@ export class ReportsService {
     if (!media) throw new NotFoundException('Media not found');
 
     // Delete from S3
-    const bucket = process.env.AWS_S3_BUCKET_NAME as string;
-    const region = (process.env.AWS_S3_BUCKET_REGION ||
-      process.env.AWS_S3_REGION) as string;
-    const prefix = `https://${bucket}.s3.${region}.amazonaws.com/`;
-    const key = media.url.startsWith(prefix)
-      ? media.url.slice(prefix.length)
-      : media.url;
+    const key = this.extractS3KeyFromUrl(media.url);
     await this.awsService.deleteImage(key).catch(() => undefined);
 
     await this.mediaRepo.delete({ id: mediaId });
@@ -222,5 +206,22 @@ export class ReportsService {
       where: { report: { id: reportId } },
       order: { created_at: 'DESC' },
     });
+  }
+
+  private extractS3KeyFromUrl(possibleUrl: string): string {
+    try {
+      // If it's a full URL, parse and strip leading '/'
+      if (
+        possibleUrl.startsWith('http://') ||
+        possibleUrl.startsWith('https://')
+      ) {
+        const u = new URL(possibleUrl);
+        return u.pathname.startsWith('/') ? u.pathname.slice(1) : u.pathname;
+      }
+      // Otherwise assume it's already a key
+      return possibleUrl;
+    } catch {
+      return possibleUrl;
+    }
   }
 }
