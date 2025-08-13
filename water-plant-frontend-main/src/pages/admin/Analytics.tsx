@@ -116,6 +116,9 @@ const Analytics = () => {
 
   // Fetch plants on mount
   useEffect(() => {
+    // Set page title
+    document.title = "Engzone - Analytics";
+
     const fetchPlants = async () => {
       try {
         setLoading(true);

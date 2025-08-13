@@ -142,6 +142,9 @@ const FillReport = () => {
   // 2. On mount, load draft if present
   useEffect(() => {
     if (user) {
+      // Set page title
+      document.title = "Engzone - Fill Report";
+
       fetchAssignedPlants();
       const draft = loadDraftFromStorage();
       if (draft) setFormData(draft);

@@ -119,6 +119,9 @@ const ManagePlants = () => {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
+    // Set page title
+    document.title = "Engzone - Manage Plants";
+
     fetchPlants();
     fetchEmployees();
   }, []);

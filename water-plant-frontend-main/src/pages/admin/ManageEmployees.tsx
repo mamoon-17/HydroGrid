@@ -72,6 +72,9 @@ const ManageEmployees = () => {
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
+    // Set page title
+    document.title = "Engzone - Manage Employees";
+
     fetchEmployees();
   }, []);
 

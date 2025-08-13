@@ -65,6 +65,9 @@ const EmployeeDashboard = () => {
 
   useEffect(() => {
     if (user) {
+      // Set page title
+      document.title = "Engzone - Employee Dashboard";
+
       fetchEmployeeData();
     }
   }, [user]);

@@ -65,6 +65,9 @@ const AdminDashboard = () => {
   });
 
   useEffect(() => {
+    // Set page title
+    document.title = "Engzone - Admin Dashboard";
+
     fetchDashboardData();
   }, []);
 

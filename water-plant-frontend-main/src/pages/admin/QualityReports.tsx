@@ -94,6 +94,9 @@ const QualityReports = () => {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   useEffect(() => {
+    // Set page title
+    document.title = "Engzone - Quality Reports";
+
     fetchReports();
   }, []);
 

@@ -111,6 +111,9 @@ const WorkHistory = () => {
 
   useEffect(() => {
     if (user) {
+      // Set page title
+      document.title = "Engzone - Work History";
+
       fetchUserReports();
     }
   }, [user]);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/button";
@@ -18,6 +18,11 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const { user, login, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Set page title
+    document.title = "Engzone - Login";
+  }, []);
 
   if (user) {
     return <Navigate to={`/${user.role}`} replace />;
