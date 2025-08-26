@@ -211,10 +211,10 @@ const WorkHistory = () => {
     );
   }
 
-  const openInGoogleMaps = (lat: number, lng: number, address: string) => {
+  const openInGoogleMaps = (lat: number, lng: number, _address: string) => {
     const baseUrl = "https://www.google.com/maps";
     const searchParams = new URLSearchParams({
-      q: `${address}, ${lat}, ${lng}`,
+      q: `${lat},${lng}`,
       ll: `${lat},${lng}`,
       z: "15",
     });

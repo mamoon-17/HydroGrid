@@ -92,7 +92,22 @@ const EmployeeDashboard = () => {
 
       const assignedPlants = await plantsResponse.json();
 
-      setAssignedPlants(assignedPlants);
+      // Normalize decimal strings to numbers for coordinates
+      const normalizedPlants: Plant[] = (assignedPlants || []).map(
+        (p: any) => ({
+          ...p,
+          lat:
+            p.lat === null || p.lat === undefined || p.lat === ""
+              ? undefined
+              : Number(p.lat),
+          lng:
+            p.lng === null || p.lng === undefined || p.lng === ""
+              ? undefined
+              : Number(p.lng),
+        })
+      );
+
+      setAssignedPlants(normalizedPlants);
 
       // Fetch reports submitted by current user
       const reportsResponse = await fetch(
@@ -373,12 +388,32 @@ const EmployeeDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="mt-3">
+                      <div className="mt-3 space-y-2">
                         <Link to={`/user/fill-report?plantId=${plant.id}`}>
                           <Button size="sm" className="w-full text-xs">
                             Submit Report
                           </Button>
                         </Link>
+                        <a
+                          href={
+                            typeof plant.lat === "number" &&
+                            typeof plant.lng === "number"
+                              ? `https://www.google.com/maps?q=${plant.lat},${plant.lng}`
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                  plant.address
+                                )}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full text-xs"
+                          >
+                            Open in Google Maps
+                          </Button>
+                        </a>
                       </div>
                     </CardContent>
                   </Card>
