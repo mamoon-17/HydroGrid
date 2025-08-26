@@ -139,6 +139,61 @@ export class UsersService {
     return this.usersRepo.find();
   }
 
+  async getAllUsersPaginated(params: {
+    limit: number;
+    offset: number;
+    select?: string[];
+  }): Promise<{
+    data: Partial<Users>[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const { limit, offset, select } = params;
+
+    const qb = this.usersRepo.createQueryBuilder('user');
+
+    if (select && select.length > 0) {
+      const allowed: Array<keyof Users> = [
+        'id',
+        'username',
+        'role',
+        'email',
+        'name',
+        'phone',
+        'created_at',
+        'updated_at',
+      ];
+      const safeFields = select.filter((f) =>
+        (allowed as string[]).includes(f),
+      );
+      if (safeFields.length > 0) {
+        qb.select(safeFields.map((f) => `user.${f}`));
+      }
+    }
+
+    qb.take(limit);
+    qb.skip(offset);
+    qb.orderBy('user.created_at', 'DESC');
+
+    const [rows, total] = await qb.getManyAndCount();
+
+    const data: Partial<Users>[] = rows.map(
+      ({ id, username, role, email, name, phone, created_at, updated_at }) => ({
+        id,
+        username,
+        role,
+        email,
+        name,
+        phone,
+        created_at,
+        updated_at,
+      }),
+    );
+
+    return { data, total, limit, offset };
+  }
+
   async changePassword(
     userId: string,
     payload: ChangePasswordDto,
@@ -158,9 +213,6 @@ export class UsersService {
     const hashed = await bcrypt.hash(newPassword, 10);
     user.password = hashed;
     await this.usersRepo.save(user);
-
-    // Invalidate all existing refresh tokens
-    await this.refreshTokenRepo.delete({ user: { id: userId } });
 
     return { message: 'Password changed successfully' };
   }

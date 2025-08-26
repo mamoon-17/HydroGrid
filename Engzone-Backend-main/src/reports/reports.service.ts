@@ -30,6 +30,32 @@ export class ReportsService {
     });
   }
 
+  async getAllReportsPaginated(params: {
+    limit: number;
+    offset: number;
+    select?: string[];
+  }): Promise<{
+    data: Report[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const { limit, offset } = params;
+
+    const qb = this.reportsRepo
+      .createQueryBuilder('report')
+      .leftJoinAndSelect('report.plant', 'plant')
+      .leftJoinAndSelect('report.submitted_by', 'user')
+      .leftJoinAndSelect('report.media', 'media')
+      .orderBy('report.created_at', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    const [rows, total] = await qb.getManyAndCount();
+
+    return { data: rows, total, limit, offset };
+  }
+
   async getReportById(id: string): Promise<Report> {
     const report = await this.reportsRepo.findOne({
       where: { id },
@@ -185,6 +211,50 @@ export class ReportsService {
       where: { submitted_by: { id: userId } },
       relations: ['plant', 'submitted_by', 'media'],
     });
+  }
+
+  async getReportsByUserIdPaginated(
+    userId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{
+    data: Report[];
+    total: number;
+    limit: number;
+    offset: number;
+    stats: { thisMonth: number };
+  }> {
+    await this.usersService.getUsersOrThrow([userId]);
+    const qb = this.reportsRepo
+      .createQueryBuilder('report')
+      .leftJoinAndSelect('report.plant', 'plant')
+      .leftJoinAndSelect('report.submitted_by', 'user')
+      .leftJoinAndSelect('report.media', 'media')
+      .where('user.id = :userId', { userId })
+      .orderBy('report.created_at', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    const [rows, total] = await qb.getManyAndCount();
+
+    // Compute this month's reports count for the user
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const startOfNextMonth = new Date(startOfMonth);
+    startOfNextMonth.setMonth(startOfNextMonth.getMonth() + 1);
+
+    const thisMonth = await this.reportsRepo
+      .createQueryBuilder('report')
+      .leftJoin('report.submitted_by', 'user')
+      .where('user.id = :userId', { userId })
+      .andWhere('report.created_at >= :start AND report.created_at < :end', {
+        start: startOfMonth,
+        end: startOfNextMonth,
+      })
+      .getCount();
+
+    return { data: rows, total, limit, offset, stats: { thisMonth } };
   }
 
   async deleteMedia(mediaId: string): Promise<{ message: string }> {

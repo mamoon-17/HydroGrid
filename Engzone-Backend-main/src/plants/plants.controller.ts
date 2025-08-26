@@ -29,7 +29,36 @@ export class PlantsController {
   @Get()
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
-  getAllPlants() {
+  getAllPlants(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('select') select?: string,
+  ) {
+    const parsedLimit = limit
+      ? Math.min(parseInt(limit, 10) || 10, 100)
+      : undefined;
+    const parsedOffset = offset
+      ? Math.max(parseInt(offset, 10) || 0, 0)
+      : undefined;
+    const selectFields = select
+      ? select
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+
+    if (
+      parsedLimit !== undefined ||
+      parsedOffset !== undefined ||
+      selectFields
+    ) {
+      return this.plantsService.getAllPlantsPaginated({
+        limit: parsedLimit ?? 10,
+        offset: parsedOffset ?? 0,
+        select: selectFields,
+      });
+    }
+
     return this.plantsService.getAllPlants();
   }
 

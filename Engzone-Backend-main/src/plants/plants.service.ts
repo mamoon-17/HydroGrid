@@ -26,6 +26,29 @@ export class PlantsService {
     });
   }
 
+  async getAllPlantsPaginated(params: {
+    limit: number;
+    offset: number;
+    select?: string[];
+  }): Promise<{
+    data: Plants[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const { limit, offset } = params;
+
+    const qb = this.plantsRepo
+      .createQueryBuilder('plant')
+      .leftJoinAndSelect('plant.user', 'user')
+      .orderBy('plant.created_at', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    const [rows, total] = await qb.getManyAndCount();
+    return { data: rows, total, limit, offset };
+  }
+
   async getAssignedPlants(userId: string): Promise<Plants[]> {
     return this.plantsRepo.find({
       relations: ['user'],

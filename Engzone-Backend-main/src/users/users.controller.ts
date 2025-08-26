@@ -9,6 +9,7 @@ import {
   Req,
   UnauthorizedException,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -31,7 +32,36 @@ export class UsersController {
   @Get()
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
-  async getAllUsers() {
+  async getAllUsers(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('select') select?: string,
+  ) {
+    const parsedLimit = limit
+      ? Math.min(parseInt(limit, 10) || 10, 100)
+      : undefined;
+    const parsedOffset = offset
+      ? Math.max(parseInt(offset, 10) || 0, 0)
+      : undefined;
+    const selectFields = select
+      ? select
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+
+    if (
+      parsedLimit !== undefined ||
+      parsedOffset !== undefined ||
+      selectFields
+    ) {
+      return this.usersService.getAllUsersPaginated({
+        limit: parsedLimit ?? 10,
+        offset: parsedOffset ?? 0,
+        select: selectFields,
+      });
+    }
+
     return this.usersService.getAllUsers();
   }
 
@@ -60,6 +90,16 @@ export class UsersController {
     return this.usersService.getUserSelf(id);
   }
 
+  // IMPORTANT: Place static route before dynamic ':id' to avoid route conflicts
+  @Patch('change-password')
+  @UseGuards(AuthGuard)
+  async changePassword(
+    @User('id') userId: string,
+    @Body(new ZodValidationPipe(changePasswordSchema)) body: ChangePasswordDto,
+  ) {
+    return this.usersService.changePassword(userId, body);
+  }
+
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(RoleType.ADMIN)
@@ -75,14 +115,5 @@ export class UsersController {
   @Roles(RoleType.ADMIN)
   async deleteUserById(@Param('id') id: string) {
     return this.usersService.deleteUserById(id);
-  }
-
-  @Patch('change-password')
-  @UseGuards(AuthGuard)
-  async changePassword(
-    @User('id') userId: string,
-    @Body(new ZodValidationPipe(changePasswordSchema)) body: ChangePasswordDto,
-  ) {
-    return this.usersService.changePassword(userId, body);
   }
 }
