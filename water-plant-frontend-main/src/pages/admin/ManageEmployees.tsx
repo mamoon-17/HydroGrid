@@ -18,6 +18,16 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -25,8 +35,16 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { Plus, Edit, Trash2, User } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  User,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
+import { apiFetch } from "../../lib/api";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -70,32 +88,88 @@ const ManageEmployees = () => {
     email: "",
   });
   const [submitError, setSubmitError] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(
+    null
+  );
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const EMPLOYEES_PAGE_SIZE = 10;
 
   useEffect(() => {
     // Set page title
     document.title = "Engzone - Manage Employees";
 
+    console.log("🔄 useEffect triggered - currentPage:", currentPage);
     fetchEmployees();
-  }, []);
+  }, [currentPage]);
 
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASE_URL}/users`, {
-        credentials: "include",
-      });
+      const offset = (currentPage - 1) * EMPLOYEES_PAGE_SIZE;
+      const url = `/users?limit=${EMPLOYEES_PAGE_SIZE}&offset=${offset}`;
 
-      const contentType = res.headers.get("content-type");
-      if (!res.ok || !contentType?.includes("application/json")) {
-        const text = await res.text();
-        throw new Error("Unexpected response format");
+      console.log("🔍 Fetching employees with pagination:");
+      console.log("📡 Current page:", currentPage);
+      console.log("📡 Page size:", EMPLOYEES_PAGE_SIZE);
+      console.log("📡 Offset:", offset);
+      console.log("📡 Full URL:", url);
+
+      const response = await apiFetch(url);
+
+      console.log("📊 Raw API response:", response);
+      console.log("📊 Response type:", typeof response);
+      console.log(
+        "📊 Response keys:",
+        response ? Object.keys(response) : "null/undefined"
+      );
+
+      // Handle paginated response structure
+      if (response && typeof response === "object" && "data" in response) {
+        // Paginated response: { data, total, limit, offset }
+        const { data, total } = response;
+
+        console.log("📊 Paginated response detected:");
+        console.log("📊 Data length:", data?.length);
+        console.log("📊 Total count:", total);
+
+        if (!Array.isArray(data)) {
+          console.error(
+            "Expected array in data field, got:",
+            typeof data,
+            data
+          );
+          throw new Error("Invalid response format from server");
+        }
+
+        setEmployees(data);
+        setTotalEmployees(total);
+        setHasMore(data.length === EMPLOYEES_PAGE_SIZE);
+      } else if (Array.isArray(response)) {
+        // Fallback: direct array response (non-paginated)
+        console.log(
+          "📊 Direct array response detected, length:",
+          response.length
+        );
+        setEmployees(response);
+        setTotalEmployees(response.length);
+        setHasMore(response.length === EMPLOYEES_PAGE_SIZE);
+      } else {
+        console.error("Unexpected response format:", typeof response, response);
+        throw new Error("Invalid response format from server");
       }
-
-      const data = await res.json();
-      setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load employees", err);
-      toast.error("Failed to load employees");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load employees"
+      );
+      setEmployees([]);
+      setTotalEmployees(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -313,9 +387,16 @@ const ManageEmployees = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (employee: Employee) => {
+    setEmployeeToDelete(employee);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!employeeToDelete) return;
+
     try {
-      const res = await fetch(`${BASE_URL}/users/${id}`, {
+      const res = await fetch(`${BASE_URL}/users/${employeeToDelete.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -330,7 +411,15 @@ const ManageEmployees = () => {
     } catch (error) {
       console.error(error);
       toast.error("Failed to delete employee");
+    } finally {
+      setDeleteDialogOpen(false);
+      setEmployeeToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setEmployeeToDelete(null);
   };
 
   const resetForm = () => {
@@ -550,28 +639,46 @@ const ManageEmployees = () => {
             Employee List
           </CardTitle>
           <CardDescription>
-            {loading ? "Loading..." : `Total: ${employees.length} employees`}
+            {loading ? "Loading..." : `Total: ${totalEmployees} employees`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Username</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {employees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employee.username}</TableCell>
-                  <TableCell>{employee.email || "-"}</TableCell>
-                  <TableCell>
+          {/* Mobile Cards View */}
+          <div className="block md:hidden space-y-4">
+            {employees.map((employee) => (
+              <div
+                key={employee.id}
+                className="border rounded-lg p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <h3 className="font-medium text-sm">{employee.name}</h3>
+                    <div className="text-xs text-muted-foreground">
+                      @{employee.username}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`capitalize text-xs px-2 py-1 rounded ${
+                        employee.role === "admin"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {employee.role}
+                    </span>
+                    {employee.role === "admin" && (
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                        Protected
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>Email: {employee.email || "-"}</div>
+                  <div>
+                    Phone:{" "}
                     {employee.country
                       ? `+${
                           countryOptions.find(
@@ -579,52 +686,198 @@ const ManageEmployees = () => {
                           )?.dialCode || ""
                         }${employee.phone}`
                       : employee.phone}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="capitalize">{employee.role}</span>
-                      {employee.role === "admin" && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                          Protected
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(employee)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(employee.id)}
-                        className="text-danger hover:text-danger"
-                        disabled={employee.role === "admin"}
-                        title={
-                          employee.role === "admin"
-                            ? "Admins cannot delete other admin accounts"
-                            : "Delete employee"
-                        }
-                      >
-                        <Trash2
-                          className={`h-4 w-4 ${
-                            employee.role === "admin" ? "opacity-50" : ""
-                          }`}
-                        />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(employee)}
+                    className="text-xs h-8"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteClick(employee)}
+                    className="text-red-600 hover:text-red-700 text-xs h-8"
+                    disabled={employee.role === "admin"}
+                    title={
+                      employee.role === "admin"
+                        ? "Admins cannot delete other admin accounts"
+                        : "Delete employee"
+                    }
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {employees.map((employee) => (
+                  <TableRow key={employee.id}>
+                    <TableCell className="font-medium">
+                      {employee.name}
+                    </TableCell>
+                    <TableCell>{employee.username}</TableCell>
+                    <TableCell>{employee.email || "-"}</TableCell>
+                    <TableCell>
+                      {employee.country
+                        ? `+${
+                            countryOptions.find(
+                              (c) => c.code === employee.country
+                            )?.dialCode || ""
+                          }${employee.phone}`
+                        : employee.phone}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize">{employee.role}</span>
+                        {employee.role === "admin" && (
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                            Protected
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(employee)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteClick(employee)}
+                          className="text-danger hover:text-danger"
+                          disabled={employee.role === "admin"}
+                          title={
+                            employee.role === "admin"
+                              ? "Admins cannot delete other admin accounts"
+                              : "Delete employee"
+                          }
+                        >
+                          <Trash2
+                            className={`h-4 w-4 ${
+                              employee.role === "admin" ? "opacity-50" : ""
+                            }`}
+                          />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 sm:px-6 py-4 border-t">
+            <div className="text-sm text-muted-foreground text-center sm:text-left">
+              {loading ? "Loading..." : `Total: ${totalEmployees} employees`}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="flex items-center gap-1 h-9 px-3"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Previous</span>
+              </Button>
+              <span className="text-sm text-muted-foreground px-2 sm:px-3 min-w-[60px] text-center">
+                Page {currentPage}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={!hasMore || loading}
+                className="flex items-center gap-1 h-9 px-3"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this employee? This action cannot
+              be undone.
+              <br />
+              <br />
+              <strong>This will permanently delete:</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>The employee account and all credentials</li>
+                <li>Access permissions and role settings</li>
+              </ul>
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Employee: <strong>{employeeToDelete?.name || "Unknown"}</strong>
+                <br />
+                Username:{" "}
+                <strong>{employeeToDelete?.username || "Unknown"}</strong>
+                <br />
+                Role:{" "}
+                <strong>
+                  {employeeToDelete?.role?.toUpperCase() || "Unknown"}
+                </strong>
+                <br />
+                Phone: <strong>{employeeToDelete?.phone || "Unknown"}</strong>
+                {employeeToDelete?.email && (
+                  <>
+                    <br />
+                    Email: <strong>{employeeToDelete.email}</strong>
+                  </>
+                )}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Employee
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

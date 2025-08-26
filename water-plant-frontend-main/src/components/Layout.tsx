@@ -4,10 +4,10 @@ import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "../hooks/use-mobile";
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 
 const Layout = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -19,6 +19,10 @@ const Layout = () => {
   if (location.pathname === "/") {
     return <Navigate to={`/${user.role}`} replace />;
   }
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,7 +42,18 @@ const Layout = () => {
               <h1 className="text-lg font-semibold">RO/UF Plant Manager</h1>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{user.name}</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {user.name}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="p-2 h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </header>
@@ -78,7 +93,7 @@ const Layout = () => {
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-4 md:p-6 lg:p-8">
+          <div className="p-2 sm:p-4 md:p-6 lg:p-8">
             <Outlet />
           </div>
         </main>

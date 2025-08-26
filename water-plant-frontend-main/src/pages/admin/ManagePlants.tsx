@@ -35,6 +35,9 @@ import {
   Plus,
   Edit,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -45,7 +48,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 import { Label } from "../../components/ui/label";
+import { apiFetch } from "../../lib/api";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -112,11 +126,19 @@ const ManagePlants = () => {
   );
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [viewPlant, setViewPlant] = useState<PlantDetail | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [plantToDelete, setPlantToDelete] = useState<PlantDetail | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [tehsilFilter, setTehsilFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPlants, setTotalPlants] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const PLANTS_PAGE_SIZE = 10;
 
   useEffect(() => {
     // Set page title
@@ -124,35 +146,63 @@ const ManagePlants = () => {
 
     fetchPlants();
     fetchEmployees();
-  }, []);
+  }, [currentPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, tehsilFilter, employeeFilter]);
 
   const fetchPlants = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${BASE_URL}/plants`, {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const offset = (currentPage - 1) * PLANTS_PAGE_SIZE;
+      const url = `/plants?limit=${PLANTS_PAGE_SIZE}&offset=${offset}`;
 
-      if (!res.ok) {
-        if (res.status === 403) {
-          throw new Error("You don't have permission to view plants");
+      const response = await apiFetch(url);
+
+      // Handle paginated response structure
+      if (response && typeof response === "object" && "data" in response) {
+        // Paginated response: { data, total, limit, offset }
+        const { data, total } = response;
+
+        if (!Array.isArray(data)) {
+          console.error(
+            "Expected array in data field, got:",
+            typeof data,
+            data
+          );
+          throw new Error("Invalid response format from server");
         }
-        throw new Error(`Failed to fetch: ${res.status}`);
-      }
 
-      const data = await res.json();
-      setPlants(
-        data.map((plant: any) => ({
-          ...plant,
-          employee: plant.user || undefined, // map user to employee for UI
-        }))
-      );
+        setPlants(
+          data.map((plant: any) => ({
+            ...plant,
+            employee: plant.user || undefined, // map user to employee for UI
+          }))
+        );
+        setTotalPlants(total);
+        setHasMore(data.length === PLANTS_PAGE_SIZE);
+      } else if (Array.isArray(response)) {
+        // Fallback: direct array response (non-paginated)
+        setPlants(
+          response.map((plant: any) => ({
+            ...plant,
+            employee: plant.user || undefined, // map user to employee for UI
+          }))
+        );
+        setTotalPlants(response.length);
+        setHasMore(response.length === PLANTS_PAGE_SIZE);
+      } else {
+        console.error("Unexpected response format:", typeof response, response);
+        throw new Error("Invalid response format from server");
+      }
     } catch (err) {
       console.error("Failed to load plants", err);
       toast.error(err instanceof Error ? err.message : "Failed to load plants");
+      setPlants([]);
+      setTotalPlants(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -246,9 +296,16 @@ const ManagePlants = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (plant: PlantDetail) => {
+    setPlantToDelete(plant);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!plantToDelete) return;
+
     try {
-      const res = await fetch(`${BASE_URL}/plants/${id}`, {
+      const res = await fetch(`${BASE_URL}/plants/${plantToDelete.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -265,7 +322,21 @@ const ManagePlants = () => {
       toast.error(
         error instanceof Error ? error.message : "Failed to delete plant"
       );
+    } finally {
+      setDeleteDialogOpen(false);
+      setPlantToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setPlantToDelete(null);
+  };
+
+  // Helper function to open Google Maps
+  const openInGoogleMaps = (lat: number, lng: number, address: string) => {
+    const url = `https://www.google.com/maps?q=${lat},${lng}&z=15&t=m`;
+    window.open(url, "_blank");
   };
 
   const resetForm = () => {
@@ -453,7 +524,7 @@ const ManagePlants = () => {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{plants.length}</div>
+            <div className="text-2xl font-bold">{totalPlants}</div>
           </CardContent>
         </Card>
 
@@ -570,68 +641,200 @@ const ManagePlants = () => {
         <CardHeader>
           <CardTitle>Plant Status Overview</CardTitle>
           <CardDescription>
-            Showing {filteredPlants.length} of {plants.length} plants
+            Showing {plants.length} of {totalPlants} plants
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Address</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Assigned Employee</TableHead>
-                <TableHead>Tehsil</TableHead>
-                <TableHead>Current Status</TableHead>
-                <TableHead>Last Report</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPlants.map((plant) => (
-                <TableRow key={plant.id}>
-                  <TableCell className="font-medium">{plant.address}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={plant.type === "ro" ? "default" : "secondary"}
-                    >
-                      {plant.type.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{getAssignedEmployee(plant)}</TableCell>
-                  <TableCell>{plant.tehsil}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={getPlantStatus(plant)} />
-                  </TableCell>
-                  <TableCell>{getLastReport(plant)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setViewPlant(plant)}
+          {/* Mobile Cards View */}
+          <div className="block md:hidden space-y-4">
+            {filteredPlants.map((plant) => (
+              <div key={plant.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <h3 className="font-medium text-sm">{plant.address}</h3>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge
+                        variant={plant.type === "ro" ? "default" : "secondary"}
+                        className="text-xs"
                       >
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(plant)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(plant.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        {plant.type.toUpperCase()}
+                      </Badge>
+                      <span>•</span>
+                      <span>{plant.tehsil}</span>
                     </div>
-                  </TableCell>
+                  </div>
+                  <StatusBadge status={getPlantStatus(plant)} />
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>Employee: {getAssignedEmployee(plant)}</div>
+                  <div>Last Report: {getLastReport(plant)}</div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewPlant(plant)}
+                    className="text-xs h-8"
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(plant)}
+                    className="text-xs h-8"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      openInGoogleMaps(plant.lat!, plant.lng!, plant.address)
+                    }
+                    disabled={!plant.lat || !plant.lng}
+                    title={
+                      plant.lat && plant.lng
+                        ? `Open ${plant.address} in Google Maps`
+                        : "No coordinates available"
+                    }
+                    className="text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed text-xs h-8"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Map
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteClick(plant)}
+                    className="text-red-600 hover:text-red-700 text-xs h-8"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Assigned Employee</TableHead>
+                  <TableHead>Tehsil</TableHead>
+                  <TableHead>Current Status</TableHead>
+                  <TableHead>Last Report</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredPlants.map((plant) => (
+                  <TableRow key={plant.id}>
+                    <TableCell className="font-medium">
+                      {plant.address}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={plant.type === "ro" ? "default" : "secondary"}
+                      >
+                        {plant.type.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{getAssignedEmployee(plant)}</TableCell>
+                    <TableCell>{plant.tehsil}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={getPlantStatus(plant)} />
+                    </TableCell>
+                    <TableCell>{getLastReport(plant)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewPlant(plant)}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(plant)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            openInGoogleMaps(
+                              plant.lat!,
+                              plant.lng!,
+                              plant.address
+                            )
+                          }
+                          disabled={!plant.lat || !plant.lng}
+                          title={
+                            plant.lat && plant.lng
+                              ? `Open ${plant.address} in Google Maps`
+                              : "No coordinates available"
+                          }
+                          className="text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteClick(plant)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 sm:px-6 py-4 border-t">
+            <div className="text-sm text-muted-foreground text-center sm:text-left">
+              Showing {plants.length} of {totalPlants} plants
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="flex items-center gap-1 h-9 px-3"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Previous</span>
+              </Button>
+              <span className="text-sm text-muted-foreground px-2 sm:px-3 min-w-[60px] text-center">
+                Page {currentPage}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={!hasMore || loading}
+                className="flex items-center gap-1 h-9 px-3"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
       {/* View Plant Dialog */}
@@ -659,6 +862,23 @@ const ManagePlants = () => {
                 {viewPlant.lat != null && viewPlant.lng != null
                   ? `${viewPlant.lat}, ${viewPlant.lng}`
                   : "N/A"}
+                {viewPlant.lat != null && viewPlant.lng != null && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      openInGoogleMaps(
+                        viewPlant.lat!,
+                        viewPlant.lng!,
+                        viewPlant.address
+                      )
+                    }
+                    className="ml-2 text-blue-600 hover:text-blue-700"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Open in Maps
+                  </Button>
+                )}
               </div>
               <div>
                 <strong>Assigned Employee:</strong>{" "}
@@ -974,6 +1194,55 @@ const ManagePlants = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Plant</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this plant? This action cannot be
+              undone.
+              <br />
+              <br />
+              <strong>This will permanently delete:</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>The plant and all its configuration</li>
+                <li>All quality reports associated with this plant</li>
+                <li>All images and media files from reports</li>
+                <li>All maintenance records and history</li>
+                <li>Employee assignments and relationships</li>
+              </ul>
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Plant:{" "}
+                <strong>{plantToDelete?.address || "Unknown Location"}</strong>
+                <br />
+                Type:{" "}
+                <strong>
+                  {plantToDelete?.type?.toUpperCase() || "Unknown"}
+                </strong>
+                <br />
+                Tehsil: <strong>{plantToDelete?.tehsil || "Unknown"}</strong>
+                <br />
+                Assigned Employee:{" "}
+                <strong>{plantToDelete?.employee?.name || "Unassigned"}</strong>
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Plant
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -242,124 +242,139 @@ const Analytics = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 md:space-y-6">
+      {/* Responsive Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Analytics
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Historical performance data and parameter tracking
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
             variant={viewMode === "table" ? "default" : "outline"}
             onClick={() => setViewMode("table")}
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto"
+            size="sm"
           >
             <TableIcon className="h-4 w-4" />
-            Historical Data
+            <span className="hidden sm:inline">Historical Data</span>
+            <span className="sm:hidden">Table</span>
           </Button>
           <Button
             variant={viewMode === "chart" ? "default" : "outline"}
             onClick={() => setViewMode("chart")}
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto"
+            size="sm"
           >
             <BarChart3 className="h-4 w-4" />
-            Chart View
+            <span className="hidden sm:inline">Chart View</span>
+            <span className="sm:hidden">Charts</span>
           </Button>
         </div>
       </div>
 
-      {/* Plant Selector */}
+      {/* Plant Selector - Mobile Optimized */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="space-y-2 w-full">
-              <label className="text-sm font-medium text-muted-foreground">
-                Select Plant
-              </label>
-              <Select
-                value={selectedPlant}
-                onValueChange={(value) => handlePlantSelect(value)}
-                disabled={!hasPlants}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a plant..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {safePlants.map((plant) => (
-                    <SelectItem key={plant.id} value={plant.id}>
-                      {plant.address} ({plant.type?.toUpperCase?.() || ""})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-muted-foreground">
+              Select Plant
+            </label>
+            <Select
+              value={selectedPlant}
+              onValueChange={(value) => handlePlantSelect(value)}
+              disabled={!hasPlants}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose a plant..." />
+              </SelectTrigger>
+              <SelectContent>
+                {safePlants.map((plant) => (
+                  <SelectItem key={plant.id} value={plant.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{plant.address}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {plant.type?.toUpperCase()} •{" "}
+                        {plant.capacity?.toLocaleString()} LPH
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Plant Information Header */}
+      {/* Plant Information Header - Mobile Optimized */}
       <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="space-y-4">
+        <CardContent className="p-4 md:p-6">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
-                  <Droplets className="h-6 w-6 text-primary" />
+                  <Droplets className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">
+                  <h2 className="text-lg md:text-2xl font-bold text-foreground">
                     {safeCurrentPlant?.address}
                   </h2>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {safeCurrentPlant?.type?.toUpperCase()} Plant •{" "}
                     {safeCurrentPlant?.capacity?.toLocaleString()} LPH
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {safeCurrentPlant?.address}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {safeCurrentPlant?.tehsil}
-                    </p>
-                  </div>
+              <Badge
+                variant="outline"
+                className="capitalize text-xs md:text-sm"
+              >
+                {safeCurrentPlant?.type} System
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+              <div className="flex items-center gap-2 p-3 bg-background/50 rounded-lg">
+                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {safeCurrentPlant?.address}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {safeCurrentPlant?.tehsil}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {safeCurrentPlant?.employee?.name || "Unassigned"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Assigned Employee
-                    </p>
-                  </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-background/50 rounded-lg">
+                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {safeCurrentPlant?.employee?.name || "Unassigned"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Assigned Employee
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 flex items-center justify-center">
-                    <div className={`h-2 w-2 rounded-full ${statusColor}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground capitalize">
-                      {statusText}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Current Status
-                    </p>
-                  </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-background/50 rounded-lg sm:col-span-2 lg:col-span-1">
+                <div className="h-4 w-4 flex items-center justify-center">
+                  <div className={`h-2 w-2 rounded-full ${statusColor}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground capitalize">
+                    {statusText}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Current Status
+                  </p>
                 </div>
               </div>
             </div>
-            <Badge variant="outline" className="capitalize">
-              {safeCurrentPlant?.type} System
-            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -378,53 +393,66 @@ const Analytics = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div>
-              <table
-                style={{
-                  minWidth: "100%",
-                  tableLayout: "fixed",
-                  borderCollapse: "separate",
-                }}
-              >
-                <thead>
-                  <tr className="border-b-2">
-                    <th
-                      style={{
-                        minWidth: 200,
-                        position: "sticky",
-                        left: 0,
-                        zIndex: 2,
-                        background: "#fff",
-                      }}
-                      className="font-semibold border-r"
-                    >
-                      Parameter
-                    </th>
-                    {reports.map((report) => {
-                      const date = new Date(report.created_at);
-                      return (
-                        <th
-                          key={report.created_at}
-                          style={{ minWidth: 160 }}
-                          className="text-center border-l"
+            {/* Mobile Cards View */}
+            <div className="block md:hidden space-y-4">
+              {reports.map((report) => {
+                const date = new Date(report.created_at);
+                return (
+                  <div
+                    key={report.created_at}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <h3 className="font-medium text-sm">
+                          {date.toLocaleDateString()}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {date.toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {report.submitted_by?.name || "Unknown"}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      {parameterKeys.map((paramKey) => (
+                        <div
+                          key={paramKey}
+                          className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
                         >
-                          <div className="flex flex-col">
-                            <span className="font-semibold">
-                              {date.toLocaleDateString()}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {date.toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {parameterKeys.map((paramKey) => (
-                    <tr key={paramKey} className="hover:bg-muted/30">
-                      <td
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {parameterLabels[paramKey]}
+                          </span>
+                          <span className="text-sm font-semibold">
+                            {report && report[paramKey] !== undefined ? (
+                              report[paramKey]
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+                <table
+                  style={{
+                    minWidth: "100%",
+                    tableLayout: "fixed",
+                    borderCollapse: "separate",
+                  }}
+                >
+                  <thead>
+                    <tr className="border-b-2">
+                      <th
                         style={{
                           minWidth: 200,
                           position: "sticky",
@@ -432,85 +460,129 @@ const Analytics = () => {
                           zIndex: 2,
                           background: "#fff",
                         }}
-                        className="font-medium border-r"
+                        className="font-semibold border-r"
                       >
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-foreground">
-                            {parameterLabels[paramKey]}
-                          </span>
-                        </div>
-                      </td>
-                      {reports.map((report) => (
-                        <td
-                          key={report.created_at}
-                          style={{ minWidth: 160 }}
-                          className="text-center border-l relative group"
-                        >
-                          {report && report[paramKey] !== undefined ? (
-                            <div className="flex flex-col items-center space-y-1">
-                              <span className="font-semibold text-foreground">
-                                {report[paramKey]}
+                        Parameter
+                      </th>
+                      {reports.map((report) => {
+                        const date = new Date(report.created_at);
+                        return (
+                          <th
+                            key={report.created_at}
+                            style={{ minWidth: 160 }}
+                            className="text-center border-l"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-semibold">
+                                {date.toLocaleDateString()}
                               </span>
-                              {report.submitted_by && (
-                                <div
-                                  className="absolute left-1/2 -translate-x-1/2 bg-popover border rounded-md p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap pointer-events-none shadow-lg"
-                                  style={{
-                                    bottom: "-2.5rem",
-                                    top: "auto",
-                                    marginTop: 0,
-                                    marginBottom: 0,
-                                    // If this is the last row, show above
-                                    ...(paramKey ===
-                                    parameterKeys[parameterKeys.length - 1]
-                                      ? { bottom: "auto", top: "-2.5rem" }
-                                      : {}),
-                                  }}
-                                >
-                                  <div>
-                                    Reported by:{" "}
-                                    {report.submitted_by.name || "Unknown"}
-                                  </div>
-                                </div>
-                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {date.toLocaleTimeString()}
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">
-                              —
-                            </span>
-                          )}
-                        </td>
-                      ))}
+                          </th>
+                        );
+                      })}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {parameterKeys.map((paramKey) => (
+                      <tr key={paramKey} className="hover:bg-muted/30">
+                        <td
+                          style={{
+                            minWidth: 200,
+                            position: "sticky",
+                            left: 0,
+                            zIndex: 2,
+                            background: "#fff",
+                          }}
+                          className="font-medium border-r"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-foreground">
+                              {parameterLabels[paramKey]}
+                            </span>
+                          </div>
+                        </td>
+                        {reports.map((report) => (
+                          <td
+                            key={report.created_at}
+                            style={{ minWidth: 160 }}
+                            className="text-center border-l relative group"
+                          >
+                            {report && report[paramKey] !== undefined ? (
+                              <div className="flex flex-col items-center space-y-1">
+                                <span className="font-semibold text-foreground">
+                                  {report[paramKey]}
+                                </span>
+                                {report.submitted_by && (
+                                  <div
+                                    className="absolute left-1/2 -translate-x-1/2 bg-popover border rounded-md p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity z-20 whitespace-nowrap pointer-events-none shadow-lg"
+                                    style={{
+                                      bottom: "-2.5rem",
+                                      top: "auto",
+                                      marginTop: 0,
+                                      marginBottom: 0,
+                                      // If this is the last row, show above
+                                      ...(paramKey ===
+                                      parameterKeys[parameterKeys.length - 1]
+                                        ? { bottom: "auto", top: "-2.5rem" }
+                                        : {}),
+                                    }}
+                                  >
+                                    <div>
+                                      Reported by:{" "}
+                                      {report.submitted_by.name || "Unknown"}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">
+                                —
+                              </span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading}
-                className="flex items-center gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Prev
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => p + 1)}
-                disabled={!hasMore || loading}
-                className="flex items-center gap-1"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            {/* Pagination Controls - Mobile Optimized */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 sm:px-6 py-4 border-t">
+              <div className="text-sm text-muted-foreground text-center sm:text-left">
+                Showing {reports.length} reports
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || loading}
+                  className="flex items-center gap-1 h-9 px-3"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
+                </Button>
+                <span className="text-sm text-muted-foreground px-2 sm:px-3 min-w-[60px] text-center">
+                  Page {currentPage}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={!hasMore || loading}
+                  className="flex items-center gap-1 h-9 px-3"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <span className="sm:hidden">Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -520,33 +592,41 @@ const Analytics = () => {
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger
                 value="line"
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 text-xs sm:text-sm"
                 onClick={() => setViewMode("chart")}
               >
                 <LineChart className="h-4 w-4" />
-                Line Chart
+                <span className="hidden sm:inline">Line Chart</span>
+                <span className="sm:hidden">Line</span>
               </TabsTrigger>
               <TabsTrigger
                 value="bar"
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 text-xs sm:text-sm"
                 onClick={() => setViewMode("chart")}
               >
                 <BarChart3 className="h-4 w-4" />
-                Bar Chart
+                <span className="hidden sm:inline">Bar Chart</span>
+                <span className="sm:hidden">Bar</span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="line" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Flow Rate & TDS Trends</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base md:text-lg">
+                      Flow Rate & TDS Trends
+                    </CardTitle>
+                    <CardDescription className="text-xs md:text-sm">
                       Monthly performance tracking
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer
+                      width="100%"
+                      height={250}
+                      className="min-h-[250px]"
+                    >
                       <RechartsLineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
@@ -573,14 +653,20 @@ const Analytics = () => {
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Pressure Monitoring</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base md:text-lg">
+                      Pressure Monitoring
+                    </CardTitle>
+                    <CardDescription className="text-xs md:text-sm">
                       Inlet vs Outlet pressure trends
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer
+                      width="100%"
+                      height={250}
+                      className="min-h-[250px]"
+                    >
                       <RechartsLineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
@@ -610,14 +696,20 @@ const Analytics = () => {
 
             <TabsContent value="bar" className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Performance Comparison</CardTitle>
-                  <CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base md:text-lg">
+                    Performance Comparison
+                  </CardTitle>
+                  <CardDescription className="text-xs md:text-sm">
                     Monthly performance metrics comparison
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                    className="min-h-[300px]"
+                  >
                     <RechartsBarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
