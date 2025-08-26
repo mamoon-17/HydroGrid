@@ -93,7 +93,7 @@ export class UsersService {
   }
 
   async updateUserById(id: string, updates: any): Promise<Users> {
-    const { name, role, email, phone, country } = updates;
+    const { name, role, email, phone, country, password } = updates;
 
     const user = await this.usersRepo.findOne({ where: { id } });
     if (!user) {
@@ -122,6 +122,13 @@ export class UsersService {
     if (name) user.name = name;
     if (role) user.role = role === 'admin' ? RoleType.ADMIN : RoleType.USER;
     if (email) user.email = email;
+
+    if (password) {
+      const hashed = await bcrypt.hash(password, 10);
+      user.password = hashed;
+      // Invalidate existing refresh tokens for this user after password change
+      await this.refreshTokenRepo.delete({ user: { id } });
+    }
 
     return await this.usersRepo.save(user);
   }
