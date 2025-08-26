@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -15,6 +15,15 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
+import L from "leaflet";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -26,6 +35,7 @@ interface Plant {
   capacity: number;
   lat?: number;
   lng?: number;
+  point?: string;
   users?: Array<{
     id: string;
     name: string;
@@ -70,6 +80,52 @@ const AdminDashboard = () => {
 
     fetchDashboardData();
   }, []);
+
+  // Fix Leaflet default marker icons for Vite builds (asset URLs)
+  const defaultIcon = useMemo(() => {
+    const iconRetinaUrl = new URL(
+      "leaflet/dist/images/marker-icon-2x.png",
+      import.meta.url
+    ).toString();
+    const iconUrl = new URL(
+      "leaflet/dist/images/marker-icon.png",
+      import.meta.url
+    ).toString();
+    const shadowUrl = new URL(
+      "leaflet/dist/images/marker-shadow.png",
+      import.meta.url
+    ).toString();
+
+    return new L.Icon({
+      iconRetinaUrl,
+      iconUrl,
+      shadowUrl,
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      tooltipAnchor: [16, -28],
+      shadowSize: [41, 41],
+    });
+  }, []);
+
+  // Fit the map to show all markers when they change
+  const FitBounds: React.FC<{ positions: [number, number][] }> = ({
+    positions,
+  }) => {
+    const map = useMap();
+    useEffect(() => {
+      if (!positions.length) return;
+      if (positions.length === 1) {
+        map.setView(positions[0], 14);
+      } else {
+        const bounds = L.latLngBounds(
+          positions.map(([lat, lng]) => L.latLng(lat, lng))
+        );
+        map.fitBounds(bounds.pad(0.2));
+      }
+    }, [positions, map]);
+    return null;
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -146,6 +202,29 @@ const AdminDashboard = () => {
       recentReports: recentReports.length,
     });
   };
+
+  // Derive Leaflet positions from plant data (lat/lng or WKT POINT)
+  const getPlantPosition = (plant: Plant): [number, number] | null => {
+    if (plant.lat != null && plant.lng != null) {
+      const lat = Number(plant.lat);
+      const lng = Number(plant.lng);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) return [lat, lng];
+    }
+    if (plant.point) {
+      // Expect WKT like: POINT(lng lat)
+      const match = plant.point.match(/POINT\(([-\d\.]+) ([-\d\.]+)\)/i);
+      if (match) {
+        const lng = Number(match[1]);
+        const lat = Number(match[2]);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) return [lat, lng];
+      }
+    }
+    return null;
+  };
+
+  const markerPositions = useMemo(() => {
+    return plants.map(getPlantPosition).filter(Boolean) as [number, number][];
+  }, [plants]);
 
   // Helper function to get last report time
   const getLastReport = (plant: Plant) => {
@@ -322,6 +401,61 @@ const AdminDashboard = () => {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Plants Map */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Plants Map</CardTitle>
+          <CardDescription>Hover markers to see plant address</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full h-[420px] rounded-md overflow-hidden border">
+            <MapContainer
+              center={markerPositions[0] ?? [30.3753, 69.3451]}
+              zoom={markerPositions.length ? 8 : 6}
+              scrollWheelZoom={true}
+              className="w-full h-full"
+            >
+              <FitBounds positions={markerPositions} />
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {plants
+                .map((plant) => ({ plant, pos: getPlantPosition(plant) }))
+                .filter((x) => x.pos)
+                .map(({ plant, pos }) => (
+                  <Marker
+                    key={plant.id}
+                    position={pos as [number, number]}
+                    icon={defaultIcon}
+                  >
+                    <Tooltip
+                      direction="top"
+                      offset={[0, -10]}
+                      opacity={1}
+                      permanent={false}
+                    >
+                      {plant.address}
+                    </Tooltip>
+                    <Popup>
+                      <div className="space-y-1">
+                        <div className="font-semibold">{plant.address}</div>
+                        <div className="text-sm">
+                          Type: {plant.type.toUpperCase()}
+                        </div>
+                        <div className="text-sm">Tehsil: {plant.tehsil}</div>
+                        <div className="text-sm">
+                          Capacity: {plant.capacity}
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+            </MapContainer>
+          </div>
         </CardContent>
       </Card>
     </div>

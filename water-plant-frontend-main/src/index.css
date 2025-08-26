@@ -9,6 +9,12 @@ body {
   overflow: hidden;
 }
 
+/* Leaflet container sizing helpers */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
 /* Professional Water Treatment Plant Management System Design */
 
 @layer base {
