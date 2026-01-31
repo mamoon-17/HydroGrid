@@ -76,7 +76,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     // Set page title
-    document.title = "Engzone - Admin Dashboard";
+    document.title = "HydroGrid - Admin Dashboard";
 
     fetchDashboardData();
   }, []);
@@ -85,15 +85,15 @@ const AdminDashboard = () => {
   const defaultIcon = useMemo(() => {
     const iconRetinaUrl = new URL(
       "leaflet/dist/images/marker-icon-2x.png",
-      import.meta.url
+      import.meta.url,
     ).toString();
     const iconUrl = new URL(
       "leaflet/dist/images/marker-icon.png",
-      import.meta.url
+      import.meta.url,
     ).toString();
     const shadowUrl = new URL(
       "leaflet/dist/images/marker-shadow.png",
-      import.meta.url
+      import.meta.url,
     ).toString();
 
     return new L.Icon({
@@ -119,7 +119,7 @@ const AdminDashboard = () => {
         map.setView(positions[0], 14);
       } else {
         const bounds = L.latLngBounds(
-          positions.map(([lat, lng]) => L.latLng(lat, lng))
+          positions.map(([lat, lng]) => L.latLng(lat, lng)),
         );
         map.fitBounds(bounds.pad(0.2));
       }
@@ -166,7 +166,7 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error("Failed to load dashboard data", err);
       toast.error(
-        err instanceof Error ? err.message : "Failed to load dashboard data"
+        err instanceof Error ? err.message : "Failed to load dashboard data",
       );
     } finally {
       setLoading(false);
@@ -233,7 +233,7 @@ const AdminDashboard = () => {
     const lastUpdate = new Date(plant.updated_at);
     const now = new Date();
     const daysDiff = Math.floor(
-      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24),
     );
 
     if (daysDiff === 0) return "Today";

@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { apiFetch } from "../lib/api";
 
+interface Team {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface User {
   id: string;
   username: string;
@@ -8,6 +14,8 @@ interface User {
   phone: string;
   email?: string | null;
   role: "admin" | "user";
+  team?: Team | null;
+  team_role?: "owner" | "admin" | "member" | null;
   created_at: string;
   updated_at: string;
 }
@@ -18,6 +26,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isLoading: boolean;
+  hasTeam: boolean;
+  isTeamAdmin: boolean;
+  isTeamOwner: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,12 +108,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Computed properties
+  const hasTeam = !!user?.team;
+  const isTeamOwner = user?.team_role === "owner";
+  const isTeamAdmin =
+    user?.team_role === "owner" || user?.team_role === "admin";
+
   const value: AuthContextType = {
     user,
     login,
     logout,
     refreshUser,
     isLoading,
+    hasTeam,
+    isTeamAdmin,
+    isTeamOwner,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

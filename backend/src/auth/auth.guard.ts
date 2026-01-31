@@ -45,9 +45,12 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('User not found');
       }
 
+      // Include team information in the request user object
       req.user = {
         id: user.id!,
         role: user.role!,
+        teamId: (user.team as any)?.id || null,
+        teamRole: user.team_role || null,
       };
 
       return true;

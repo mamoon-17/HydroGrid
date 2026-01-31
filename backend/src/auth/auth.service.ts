@@ -82,7 +82,12 @@ export class AuthService {
   }
 
   async login(username: string, password: string, res: Response) {
-    const user = await this.usersRepo.findOne({ where: { username } });
+    // Normalize username to lowercase for case-insensitive lookup
+    const normalizedUsername = username.toLowerCase();
+    const user = await this.usersRepo.findOne({
+      where: { username: normalizedUsername },
+      relations: ['team'],
+    });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const isMatch = await bcrypt.compare(password, user.password);

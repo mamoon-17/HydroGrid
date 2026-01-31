@@ -5,8 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Users } from '../users/users.entity';
+import { Team } from '../teams/teams.entity';
 
 export enum PlantType {
   UF = 'uf',
@@ -39,6 +41,15 @@ export class Plants {
   @Column({ type: 'int', unsigned: true, nullable: false })
   capacity: number;
 
+  // Plant belongs to a team (required for SaaS multi-tenancy)
+  @ManyToOne(() => Team, (team) => team.plants, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'team_id' })
+  team: Team;
+
+  // Assigned employee within the team
   @ManyToOne(() => Users, (user) => user.plants, {
     nullable: true,
     onDelete: 'SET NULL',

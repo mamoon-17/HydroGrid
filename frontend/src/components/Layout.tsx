@@ -4,10 +4,10 @@ import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "../hooks/use-mobile";
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut, Building2 } from "lucide-react";
 
 const Layout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasTeam } = useAuth();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -15,9 +15,15 @@ const Layout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to appropriate dashboard based on role
+  // If user doesn't have a team, redirect to team setup
+  if (!hasTeam) {
+    return <Navigate to="/team-setup" replace />;
+  }
+
+  // Redirect to appropriate dashboard based on team role
   if (location.pathname === "/") {
-    return <Navigate to={`/${user.role}`} replace />;
+    const isAdmin = user.team_role === "owner" || user.team_role === "admin";
+    return <Navigate to={isAdmin ? "/admin" : "/user"} replace />;
   }
 
   const handleLogout = () => {
@@ -39,7 +45,15 @@ const Layout = () => {
               >
                 <Menu className="h-4 w-4" />
               </Button>
-              <h1 className="text-lg font-semibold">RO/UF Plant Manager</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold">HydroGrid</h1>
+                {user.team && (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {user.team.name}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden sm:inline">

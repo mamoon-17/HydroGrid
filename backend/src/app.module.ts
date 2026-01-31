@@ -7,6 +7,7 @@ import { ReportsModule } from './reports/reports.module';
 import { ReportMediaModule } from './report_media/report_media.module';
 import { RefreshTokensModule } from './refresh_tokens/refresh_tokens.module';
 import { AuthModule } from './auth/auth.module';
+import { TeamsModule } from './teams/teams.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronTasksService } from './cron-tasks/cron-tasks.service';
 import { RefreshToken } from './refresh_tokens/refresh_tokens.entity';
@@ -63,6 +64,7 @@ import { SharedModule } from './shared/shared.module';
     ReportMediaModule,
     RefreshTokensModule,
     AuthModule,
+    TeamsModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([RefreshToken]),
     SharedModule,
