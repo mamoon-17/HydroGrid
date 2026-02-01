@@ -66,7 +66,7 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     if (user) {
       // Set page title
-      document.title = "Engzone - Employee Dashboard";
+      document.title = "HydroGrid - Employee Dashboard";
 
       fetchEmployeeData();
     }
@@ -86,7 +86,7 @@ const EmployeeDashboard = () => {
 
       if (!plantsResponse.ok) {
         throw new Error(
-          `Failed to fetch assigned plants: ${plantsResponse.status}`
+          `Failed to fetch assigned plants: ${plantsResponse.status}`,
         );
       }
 
@@ -104,7 +104,7 @@ const EmployeeDashboard = () => {
             p.lng === null || p.lng === undefined || p.lng === ""
               ? undefined
               : Number(p.lng),
-        })
+        }),
       );
 
       setAssignedPlants(normalizedPlants);
@@ -117,7 +117,7 @@ const EmployeeDashboard = () => {
           headers: {
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (reportsResponse.ok) {
@@ -130,7 +130,7 @@ const EmployeeDashboard = () => {
     } catch (err) {
       console.error("Failed to load employee data", err);
       toast.error(
-        err instanceof Error ? err.message : "Failed to load employee data"
+        err instanceof Error ? err.message : "Failed to load employee data",
       );
     } finally {
       setLoading(false);
@@ -144,7 +144,7 @@ const EmployeeDashboard = () => {
     const lastUpdate = new Date(plant.updated_at);
     const now = new Date();
     const daysDiff = Math.floor(
-      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24),
     );
 
     if (daysDiff === 0) return "Today";
@@ -159,7 +159,7 @@ const EmployeeDashboard = () => {
     const lastUpdate = new Date(plant.updated_at);
     const now = new Date();
     return Math.floor(
-      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24)
+      (now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24),
     );
   };
 
@@ -168,7 +168,7 @@ const EmployeeDashboard = () => {
     const reportDate = new Date(dateString);
     const now = new Date();
     const daysDiff = Math.floor(
-      (now.getTime() - reportDate.getTime()) / (1000 * 3600 * 24)
+      (now.getTime() - reportDate.getTime()) / (1000 * 3600 * 24),
     );
 
     if (daysDiff === 0) return "Today";
@@ -379,8 +379,8 @@ const EmployeeDashboard = () => {
                               daysAgo > 15
                                 ? "text-danger"
                                 : daysAgo > 7
-                                ? "text-warning"
-                                : "text-success"
+                                  ? "text-warning"
+                                  : "text-success"
                             }`}
                           >
                             {daysAgo === 999 ? "Never" : `${daysAgo} days ago`}
@@ -400,7 +400,7 @@ const EmployeeDashboard = () => {
                             typeof plant.lng === "number"
                               ? `https://www.google.com/maps?q=${plant.lat},${plant.lng}`
                               : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                  plant.address
+                                  plant.address,
                                 )}`
                           }
                           target="_blank"

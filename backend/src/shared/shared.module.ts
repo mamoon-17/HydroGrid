@@ -5,7 +5,7 @@ import { GeneratorService } from './generator.service';
 
 @Global()
 @Module({
-  exports: [UploadService],
+  exports: [UploadService, GeneratorService],
   imports: [GlobalConfigModule],
   providers: [UploadService, GeneratorService],
 })

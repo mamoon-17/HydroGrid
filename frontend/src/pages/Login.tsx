@@ -17,15 +17,21 @@ import { Droplets } from "lucide-react";
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { user, login, isLoading } = useAuth();
+  const { user, login, isLoading, hasTeam, isTeamAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     document.title = "HydroGrid - Login";
   }, []);
 
+  // Redirect based on user state
   if (user) {
-    return <Navigate to={`/${user.role}`} replace />;
+    if (!hasTeam) {
+      return <Navigate to="/team-setup" replace />;
+    }
+    // Redirect based on team role
+    const redirectPath = isTeamAdmin ? "/admin" : "/user";
+    return <Navigate to={redirectPath} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

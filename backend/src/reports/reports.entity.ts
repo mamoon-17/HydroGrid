@@ -12,6 +12,7 @@ import {
 import { Plants } from '../plants/plants.entity';
 import { Users } from '../users/users.entity';
 import { ReportMedia } from '../report_media/report_media.entity';
+import { Team } from '../teams/teams.entity';
 
 export enum BackwashStatus {
   DONE = 'done',
@@ -23,6 +24,11 @@ export enum BackwashStatus {
 export class Report {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  // Report belongs to a team (required for SaaS multi-tenancy)
+  @ManyToOne(() => Team, { onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+  @JoinColumn({ name: 'team_id' })
+  team: Team;
 
   @ManyToOne(() => Plants, { onDelete: 'RESTRICT', onUpdate: 'CASCADE' })
   @JoinColumn({ name: 'plant_id' })

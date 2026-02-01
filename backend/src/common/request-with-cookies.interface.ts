@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { RoleType } from '../users/users.entity';
+import { RoleType, TeamRole } from '../users/users.entity';
 
 export interface RequestWithCookies extends Request {
   cookies: {
@@ -9,5 +9,7 @@ export interface RequestWithCookies extends Request {
   user?: {
     id: string;
     role: RoleType;
+    teamId: string | null;
+    teamRole: TeamRole | null;
   };
 }

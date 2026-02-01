@@ -4,11 +4,13 @@ import {
   NotFoundException,
   forwardRef,
   Inject,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Plants } from './plants.entity';
 import { Users } from '../users/users.entity';
+import { Team } from '../teams/teams.entity';
 import { UsersService } from 'src/users/users.service';
 import { CreatePlantDto, UpdatePlantDto } from './dtos/create-plant.dto';
 
@@ -16,21 +18,29 @@ import { CreatePlantDto, UpdatePlantDto } from './dtos/create-plant.dto';
 export class PlantsService {
   constructor(
     @InjectRepository(Plants) private plantsRepo: Repository<Plants>,
+    @InjectRepository(Team) private teamsRepo: Repository<Team>,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
   ) {}
 
-  async getAllPlants(): Promise<Plants[]> {
+  /**
+   * Get all plants for a specific team
+   */
+  async getAllPlants(teamId: string): Promise<Plants[]> {
     return this.plantsRepo.find({
-      relations: ['user'],
+      where: { team: { id: teamId } },
+      relations: ['user', 'team'],
     });
   }
 
-  async getAllPlantsPaginated(params: {
-    limit: number;
-    offset: number;
-    select?: string[];
-  }): Promise<{
+  async getAllPlantsPaginated(
+    teamId: string,
+    params: {
+      limit: number;
+      offset: number;
+      select?: string[];
+    },
+  ): Promise<{
     data: Plants[];
     total: number;
     limit: number;
@@ -41,6 +51,8 @@ export class PlantsService {
     const qb = this.plantsRepo
       .createQueryBuilder('plant')
       .leftJoinAndSelect('plant.user', 'user')
+      .leftJoinAndSelect('plant.team', 'team')
+      .where('plant.team_id = :teamId', { teamId })
       .orderBy('plant.created_at', 'DESC')
       .take(limit)
       .skip(offset);
@@ -51,7 +63,7 @@ export class PlantsService {
 
   async getAssignedPlants(userId: string): Promise<Plants[]> {
     return this.plantsRepo.find({
-      relations: ['user'],
+      relations: ['user', 'team'],
       where: {
         user: {
           id: userId,
@@ -60,12 +72,22 @@ export class PlantsService {
     });
   }
 
-  async createPlant(payload: CreatePlantDto): Promise<Plants> {
+  async createPlant(teamId: string, payload: CreatePlantDto): Promise<Plants> {
     const { address, lat, lng, tehsil, type, capacity, userId } = payload;
+
+    // Verify team exists
+    const team = await this.teamsRepo.findOne({ where: { id: teamId } });
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
 
     let user: Users | undefined = undefined;
     if (userId) {
       const [foundUser] = await this.usersService.getUsersOrThrow([userId]);
+      // Verify user belongs to the same team
+      if (foundUser.team?.id !== teamId) {
+        throw new ForbiddenException('User must be a member of the same team');
+      }
       user = foundUser;
     }
 
@@ -87,6 +109,7 @@ export class PlantsService {
       tehsil: tehsil.trim().toLowerCase(),
       type,
       capacity,
+      team,
       user,
       point,
     });
@@ -94,11 +117,17 @@ export class PlantsService {
     return this.plantsRepo.save(plant);
   }
 
-  async getPlantsByIds(ids: string[]): Promise<Plants[]> {
+  async getPlantsByIds(ids: string[], teamId?: string): Promise<Plants[]> {
     if (!ids.length) return [];
+    
+    const whereCondition: any = { id: In(ids) };
+    if (teamId) {
+      whereCondition.team = { id: teamId };
+    }
+    
     return this.plantsRepo.find({
-      where: { id: In(ids) },
-      relations: ['user'],
+      where: whereCondition,
+      relations: ['user', 'team'],
     });
   }
 
@@ -115,10 +144,10 @@ export class PlantsService {
     return plant.user ?? null;
   }
 
-  async updatePlant(id: string, updates: UpdatePlantDto): Promise<Plants> {
+  async updatePlant(id: string, teamId: string, updates: UpdatePlantDto): Promise<Plants> {
     const existing = await this.plantsRepo.findOne({
-      where: { id },
-      relations: ['user'],
+      where: { id, team: { id: teamId } },
+      relations: ['user', 'team'],
     });
 
     if (!existing) {
@@ -133,6 +162,10 @@ export class PlantsService {
     } else if (userId) {
       // Assign new user
       const [user] = await this.usersService.getUsersOrThrow([userId]);
+      // Verify user belongs to the same team
+      if (user.team?.id !== teamId) {
+        throw new ForbiddenException('User must be a member of the same team');
+      }
       existing.user = user;
     }
 
@@ -159,8 +192,8 @@ export class PlantsService {
     return this.plantsRepo.save(existing);
   }
 
-  async deletePlant(id: string): Promise<{ message: string }> {
-    const result = await this.plantsRepo.delete({ id });
+  async deletePlant(id: string, teamId: string): Promise<{ message: string }> {
+    const result = await this.plantsRepo.delete({ id, team: { id: teamId } });
     if (result.affected === 0) {
       throw new NotFoundException('Plant not found');
     }
@@ -168,11 +201,16 @@ export class PlantsService {
     return { message: 'Plant deleted successfully' };
   }
 
-  async getPlantsOrThrow(ids: string[]): Promise<Plants[]> {
+  async getPlantsOrThrow(ids: string[], teamId?: string): Promise<Plants[]> {
     if (!ids.length) return [];
 
+    const whereCondition: any = { id: In(ids) };
+    if (teamId) {
+      whereCondition.team = { id: teamId };
+    }
+
     const plants = await this.plantsRepo.find({
-      where: { id: In(ids) },
+      where: whereCondition,
     });
 
     if (plants.length !== ids.length) {
@@ -180,5 +218,15 @@ export class PlantsService {
     }
 
     return plants;
+  }
+
+  /**
+   * Verify that a plant belongs to a specific team
+   */
+  async verifyPlantTeamAccess(plantId: string, teamId: string): Promise<boolean> {
+    const plant = await this.plantsRepo.findOne({
+      where: { id: plantId, team: { id: teamId } },
+    });
+    return !!plant;
   }
 }

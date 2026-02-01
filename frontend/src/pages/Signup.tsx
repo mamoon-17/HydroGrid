@@ -54,7 +54,7 @@ const Signup = () => {
     country: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, hasTeam, isTeamAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -62,7 +62,11 @@ const Signup = () => {
   }, []);
 
   if (user) {
-    return <Navigate to={`/${user.role}`} replace />;
+    // Redirect based on team membership
+    if (!hasTeam) {
+      return <Navigate to="/team-setup" replace />;
+    }
+    return <Navigate to={isTeamAdmin ? "/admin" : "/user"} replace />;
   }
 
   const handleChange = (field: string, value: string) => {
@@ -118,7 +122,8 @@ const Signup = () => {
 
       toast.success("Account created successfully!");
       await refreshUser();
-      navigate("/user");
+      // After signup, user needs to create or join a team
+      navigate("/team-setup");
     } catch (error: any) {
       toast.error(error.message || "Failed to create account");
     } finally {

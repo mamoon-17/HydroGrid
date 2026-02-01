@@ -10,12 +10,13 @@ import {
   UnauthorizedException,
   UseGuards,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
-import { RoleType } from './users.entity';
+import { TeamRolesGuard } from 'src/auth/team-roles.guard';
+import { TeamRoles } from 'src/auth/team-roles.decorator';
+import { TeamRole } from './users.entity';
 import { CreateUserDto, CreateUserSchema } from './dtos/create-user.dto';
 import { ZodValidationPipe } from 'src/common/pipes/zod-validation.pipe';
 import { UpdateUserDto, updateUserSchema } from './dtos/update-user.dto';
@@ -29,14 +30,22 @@ import { User } from 'src/common/decorators/user.decorator';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  /**
+   * Get all team members (team admin/owner only)
+   */
   @Get()
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
+  @UseGuards(AuthGuard, TeamRolesGuard)
+  @TeamRoles(TeamRole.OWNER, TeamRole.ADMIN)
   async getAllUsers(
+    @User('teamId') teamId: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
     @Query('select') select?: string,
   ) {
+    if (!teamId) {
+      throw new ForbiddenException('You must be a member of a team');
+    }
+
     const parsedLimit = limit
       ? Math.min(parseInt(limit, 10) || 10, 100)
       : undefined;
@@ -55,23 +64,31 @@ export class UsersController {
       parsedOffset !== undefined ||
       selectFields
     ) {
-      return this.usersService.getAllUsersPaginated({
+      return this.usersService.getTeamMembersPaginated(teamId, {
         limit: parsedLimit ?? 10,
         offset: parsedOffset ?? 0,
         select: selectFields,
       });
     }
 
-    return this.usersService.getAllUsers();
+    return this.usersService.getTeamMembers(teamId);
   }
 
+  /**
+   * Create a new team member (admin invites them)
+   */
   @Post()
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
+  @UseGuards(AuthGuard, TeamRolesGuard)
+  @TeamRoles(TeamRole.OWNER, TeamRole.ADMIN)
   async createUser(
+    @User('teamId') teamId: string,
+    @User('teamRole') creatorRole: TeamRole,
     @Body(new ZodValidationPipe(CreateUserSchema)) payload: CreateUserDto,
   ) {
-    return this.usersService.createUser(payload);
+    if (!teamId) {
+      throw new ForbiddenException('You must be a member of a team');
+    }
+    return this.usersService.createTeamMember(teamId, payload, creatorRole);
   }
 
   @Get('me')
@@ -81,13 +98,13 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
-  getUserById(@Param('id') id: string) {
+  @UseGuards(AuthGuard, TeamRolesGuard)
+  @TeamRoles(TeamRole.OWNER, TeamRole.ADMIN)
+  getUserById(@Param('id') id: string, @User('teamId') teamId: string) {
     if (!id) {
       throw new UnauthorizedException('User ID not found in request');
     }
-    return this.usersService.getUserSelf(id);
+    return this.usersService.getTeamMemberById(teamId, id);
   }
 
   // IMPORTANT: Place static route before dynamic ':id' to avoid route conflicts
@@ -101,19 +118,30 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
+  @UseGuards(AuthGuard, TeamRolesGuard)
+  @TeamRoles(TeamRole.OWNER, TeamRole.ADMIN)
   async updateUserById(
     @Param('id') id: string,
+    @User('teamId') teamId: string,
     @Body(new ZodValidationPipe(updateUserSchema)) updates: UpdateUserDto,
   ) {
-    return this.usersService.updateUserById(id, updates);
+    if (!teamId) {
+      throw new ForbiddenException('You must be a member of a team');
+    }
+    return this.usersService.updateTeamMember(teamId, id, updates);
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.ADMIN)
-  async deleteUserById(@Param('id') id: string) {
-    return this.usersService.deleteUserById(id);
+  @UseGuards(AuthGuard, TeamRolesGuard)
+  @TeamRoles(TeamRole.OWNER, TeamRole.ADMIN)
+  async deleteUserById(
+    @Param('id') id: string,
+    @User('teamId') teamId: string,
+    @User('teamRole') deleterRole: TeamRole,
+  ) {
+    if (!teamId) {
+      throw new ForbiddenException('You must be a member of a team');
+    }
+    return this.usersService.removeTeamMember(teamId, id, deleterRole);
   }
 }
