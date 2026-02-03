@@ -2,6 +2,8 @@
 
 **Intelligent Water Plant Management System**
 
+🌐 Live Demo: **[https://hydro-grid.vercel.app/](https://hydro-grid.vercel.app/)**
+
 ## Overview
 
 HydroGrid is a comprehensive full-stack SaaS platform designed to streamline water treatment plant operations, quality monitoring, and team management. With multi-tenancy support, role-based access control, and detailed analytics, HydroGrid transforms the way water plant operators manage their facilities.
