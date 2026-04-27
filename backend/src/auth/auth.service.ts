@@ -11,7 +11,7 @@ import { RefreshToken } from '../refresh_tokens/refresh_tokens.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { Response } from 'express';
+import type { Response } from 'express-serve-static-core';
 import { JwtPayloadSchema } from './schemas/jwt-payload.schema';
 import { SignupDto } from './dtos/signup.dto';
 import parsePhoneNumberFromString, {

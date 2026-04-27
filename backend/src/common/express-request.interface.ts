@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import type { Request } from 'express-serve-static-core';
 import { RoleType } from '../users/users.entity';
 
 export interface AuthenticatedRequest extends Request {

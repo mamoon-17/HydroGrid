@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { Response } from 'express';
+import type { Response } from 'express-serve-static-core';
 import { z } from 'zod';
 import { RequestWithCookies } from '../common/request-with-cookies.interface';
 import { AuthGuard } from './auth.guard';

@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import type { Request } from 'express-serve-static-core';
 import { RoleType, TeamRole } from '../users/users.entity';
 
 export interface RequestWithCookies extends Request {
