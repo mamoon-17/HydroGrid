@@ -13,6 +13,15 @@ export const envSchema = z
     DATABASE_PASSWORD: z.string().optional(),
     DATABASE_NAME: z.string().optional(),
     NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
+
+    // Render keepalive (optional)
+    KEEPALIVE_ENABLED: z.string().optional(),
+    KEEPALIVE_INTERVAL_SECONDS: z.string().regex(/^\d+$/).optional(),
+    KEEPALIVE_SELF_URL: z.string().optional(),
+
+    // DB keep-awake probe (optional)
+    DB_KEEPALIVE_ENABLED: z.string().optional(),
+    DB_KEEPALIVE_CRON: z.string().optional(),
   })
   .refine(
     (data) =>

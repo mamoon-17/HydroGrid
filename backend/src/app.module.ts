@@ -13,6 +13,7 @@ import { CronTasksService } from './cron-tasks/cron-tasks.service';
 import { RefreshToken } from './refresh_tokens/refresh_tokens.entity';
 import { GlobalConfigModule } from './config/global-config.module';
 import { SharedModule } from './shared/shared.module';
+import { KeepaliveModule } from './keepalive/keepalive.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { SharedModule } from './shared/shared.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([RefreshToken]),
     SharedModule,
+    KeepaliveModule,
   ],
   providers: [CronTasksService],
 })

@@ -203,6 +203,17 @@ FRONTEND_URL=http://localhost:5173
 
 # Cron Jobs (optional)
 REFRESH_CLEANUP_CRON="0 0 * * *"
+
+# Render cold-start prevention (optional)
+# Self-polls the backend /health endpoint periodically.
+KEEPALIVE_ENABLED=true
+KEEPALIVE_INTERVAL_SECONDS=300
+# KEEPALIVE_SELF_URL=https://your-backend.onrender.com/health
+
+# DB sleep prevention (optional)
+# Daily insert+delete on a dedicated table `db_keepalive_probes`.
+DB_KEEPALIVE_ENABLED=true
+DB_KEEPALIVE_CRON="0 0 * * *"
 ```
 
 ## Core Modules
