@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import http from 'http';
 import https from 'https';
 
@@ -37,26 +42,52 @@ function simpleGet(url: string, timeout = 10_000): Promise<number> {
 @Injectable()
 export class KeepaliveService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(KeepaliveService.name);
+  private pingCount = 0;
 
   onModuleInit() {
-    const enabled = (process.env.KEEPALIVE_ENABLED ?? 'true').toLowerCase() !== 'false';
-    if (!enabled) return;
+    const enabled =
+      (process.env.KEEPALIVE_ENABLED ?? 'true').toLowerCase() !== 'false';
+    if (!enabled) {
+      this.logger.log('Keepalive is disabled');
+      return;
+    }
 
-    const intervalSeconds = Number(process.env.KEEPALIVE_INTERVAL_SECONDS) || 300;
+    const intervalSeconds =
+      Number(process.env.KEEPALIVE_INTERVAL_SECONDS) || 300;
     const port = process.env.PORT || 3000;
-    const selfUrl = process.env.KEEPALIVE_SELF_URL || `http://localhost:${port}/health`;
+    const selfUrl =
+      process.env.KEEPALIVE_SELF_URL || `http://localhost:${port}/health`;
 
     const pingOnce = async () => {
-      const status = await simpleGet(selfUrl);
-      this.logger.log(
-        `[keepalive] ${new Date().toISOString()} url=${selfUrl} status=${status}`,
-      );
+      try {
+        const startTime = Date.now();
+        const status = await simpleGet(selfUrl);
+        const duration = Date.now() - startTime;
+        this.pingCount++;
+
+        if (status === 200) {
+          this.logger.debug(
+            `[ping #${this.pingCount}] ${new Date().toISOString()} url=${selfUrl} status=${status} time=${duration}ms`,
+          );
+        } else {
+          this.logger.warn(
+            `[ping #${this.pingCount}] ${new Date().toISOString()} url=${selfUrl} status=${status} time=${duration}ms`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Ping failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     };
 
+    // Run immediately on startup
     pingOnce();
+
+    // Then run on interval
     intervalId = setInterval(pingOnce, intervalSeconds * 1000);
     this.logger.log(
-      `Keepalive enabled. interval=${intervalSeconds}s url=${selfUrl}`,
+      `✓ Keepalive started. interval=${intervalSeconds}s url=${selfUrl}`,
     );
   }
 
@@ -64,7 +95,7 @@ export class KeepaliveService implements OnModuleInit, OnModuleDestroy {
     if (intervalId) {
       clearInterval(intervalId);
       intervalId = null;
+      this.logger.log(`Keepalive stopped after ${this.pingCount} pings`);
     }
   }
 }
-

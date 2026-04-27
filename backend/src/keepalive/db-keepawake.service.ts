@@ -15,6 +15,7 @@ import { DbKeepaliveProbe } from './db-keepalive-probe.entity';
 @Injectable()
 export class DbKeepAwakeService implements OnModuleInit {
   private readonly logger = new Logger(DbKeepAwakeService.name);
+  private jobStarted = false;
 
   constructor(
     @InjectRepository(DbKeepaliveProbe)
@@ -25,24 +26,45 @@ export class DbKeepAwakeService implements OnModuleInit {
   onModuleInit() {
     const enabled =
       (process.env.DB_KEEPALIVE_ENABLED ?? 'true').toLowerCase() !== 'false';
-    if (!enabled) return;
+    if (!enabled) {
+      this.logger.log('DB keep-awake is disabled');
+      return;
+    }
 
-    let rawCronExpr = process.env.DB_KEEPALIVE_CRON || '0 0 * * *';
+    // Default: every 10 minutes (prevents cold starts)
+    // Override with DB_KEEPALIVE_CRON env var if needed
+    let rawCronExpr = process.env.DB_KEEPALIVE_CRON || '*/10 * * * *';
     rawCronExpr = rawCronExpr.trim().replace(/^['"]|['"]$/g, '');
 
     this.logger.log(`Registering DB keep-awake cron: '${rawCronExpr}'`);
 
-    const job = new CronJob(rawCronExpr, async () => {
-      const created = await this.probeRepo.save({});
-      await this.probeRepo.delete({ id: created.id });
+    const job = new CronJob(
+      rawCronExpr,
+      async () => {
+        try {
+          const created = await this.probeRepo.save({});
+          await this.probeRepo.delete({ id: created.id });
 
-      this.logger.log(
-        `DB keep-awake probe touched (insert+delete). id=${created.id}`,
-      );
-    });
+          this.logger.log(
+            `[${new Date().toISOString()}] DB keep-awake probe touched (insert+delete). id=${created.id}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `DB keep-awake probe failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      },
+      null,
+      false,
+      'UTC',
+    );
 
     this.schedulerRegistry.addCronJob('db-keepawake', job);
     job.start();
+    this.jobStarted = true;
+
+    this.logger.log(
+      `✓ DB keep-awake started successfully. cron: '${rawCronExpr}'`,
+    );
   }
 }
-
